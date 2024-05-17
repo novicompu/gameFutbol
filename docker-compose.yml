@@ -1,0 +1,25 @@
+version: '3.3'
+services:
+  mysql:
+    image: mysql:8.0.36
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Zafiro30
+      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: dataGame
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    shm_size: 512m
+
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    shm_size: 512m 
+    
