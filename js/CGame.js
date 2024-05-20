@@ -399,15 +399,17 @@ function CGame(oData) {
     //     _oStartBall.setVisible(false);
     //     this.chooseDirectionGoalKeeper(oDir);
     //     playSound("kick", 1, false);
+        
     // };
 
-    this.addImpulseToBall = function (oDir) {
+    this.addImpulseToBall = function(oDir) {
         if (_bLaunched || _iGameState !== STATE_PLAY) {
             return;
         }
+    
         var oBall = _oScene.ballBody();
         _oScene.addImpulse(oBall, oDir);
-        _oScene.setElementAngularVelocity(oBall, {x: 0, y: 0, z: 0});
+        _oScene.setElementAngularVelocity(oBall, { x: 0, y: 0, z: 0 });
         _bLaunched = true;
         _oBall.setVisible(true);
         _oStartBall.setVisible(false);
@@ -420,24 +422,27 @@ function CGame(oData) {
         var makeGoal = _bMakeGoal;
         var area = _iArea;
     
-        // Enviar datos al backend
-        $.ajax({
-            type: 'POST',
-            url: 'http://localhost:3001/calculate-score',
-            data: {
+        //Enviar datos al backend
+        fetch('http://localhost:3001/calculate-score', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 tiro: tiro,
                 puntos: puntos,
                 makeGoal: makeGoal,
                 area: area
-            },
-            success: function(response) {
-                console.log('Datos enviados:', response);
-                // Actualizar el puntaje en la interfaz
-                _oInterface.refreshTextScoreBoard(response.totalScore, 1, response.totalScore, true);
-            },
-            error: function(error) {
-                console.error('Error al enviar los datos:', error);
-            }
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Datos enviados:', data);
+            // Actualizar el puntaje en la interfaz
+            _oInterface.refreshTextScoreBoard(data.totalScore, 1, data.totalScore, true);
+        })
+        .catch(error => {
+            console.error('Error al enviar los datos:', error);
         });
     };
     
