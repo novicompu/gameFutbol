@@ -447,6 +447,7 @@ function CGame(oData) {
     };
     
     
+    
     this.chooseDirectionGoalKeeper = function () {
 
         var pBallFinalPos = this.predictBallGoalPos(_vHitDir);

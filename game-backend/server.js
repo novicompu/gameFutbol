@@ -1,13 +1,24 @@
 require('dotenv').config();
-
+const { session } = require('express-session');
 const express = require('express');
 const bodyParser = require('body-parser');
-const redisClient = require('./config/redisClient');
-const Score = require('../models/Score');
 const sequelize = require('./config/sequelize');
 const cors = require('cors');
+const RedisSessions = require('redis-sessions').default;
 const app = express();
 const port = process.env.PORT || 3001;
+const User = require('./models/Score');
+
+// Configuración de RedisSessions
+const rs = new RedisSessions({
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT,
+  options: {
+    password: process.env.REDIS_PASSWORD
+  }
+});
+
+const rsApp = "myapp"; 
 
 app.use(cors({
   origin: 'http://127.0.0.1:5500'
@@ -16,28 +27,9 @@ app.use(cors({
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.post('/submit-throw', async (req, res) => {
-  const { cedula, tiro, puntos } = req.body;
-
-  if (!cedula || tiro === undefined || puntos === undefined) {
-    console.error('Datos faltantes');
-    return res.status(400).json({ error: 'Todos los datos son requeridos' });
-  }
-
-  const key = `throws:${cedula}`;
-
-  try {
-    await redisClient.hSet(key, `throw${tiro}`, puntos);
-    console.log(`Tiro almacenado en Redis: cedula=${cedula}, tiro=${tiro}, puntos=${puntos}`);
-    res.json({ message: 'Tiro almacenado en Redis' });
-  } catch (err) {
-    console.error('Error al almacenar en Redis:', err);
-    res.status(500).json({ error: 'Error al almacenar los datos' });
-  }
-});
-
-app.post('/submit-score', async (req, res) => {
+app.post('/submit-login', async (req, res) => {
   const { cedula, nombre } = req.body;
+  const totalScore = 0;
 
   if (!cedula || !nombre) {
     console.error('Cédula o nombre faltantes');
@@ -45,33 +37,45 @@ app.post('/submit-score', async (req, res) => {
   }
 
   try {
+    // Verificar si la cédula ya existe en la base de datos
+    const usuarioExistente = await User.findOne({ where: { cedula } });
+
+    if (usuarioExistente) {
+      console.log(`La cédula ${cedula} ya existe.`);
+      return res.status(400).json({ error: 'La cédula ya está registrada' });
+    }
+
+    // Crear una nueva sesión en Redis
+    const session = await rs.create({
+      app: rsApp,
+      id: cedula,
+      ip: req.ip,
+      ttl: 3600,
+      d: { nombre, cedula, totalScore }
+    });
+
+    console.log('Sesión creada:', session.token);
     console.log(`Datos recibidos: cédula=${cedula}, nombre=${nombre}`);
-    res.json({ message: 'Datos recibidos correctamente', cedula, nombre });
+
+    // Guardar los datos en la base de datos MySQL
+    const nuevoUsuario = await User.create({ cedula, nombre, totalScore });
+
+    res.json({ message: 'Datos recibidos y guardados correctamente', cedula, nombre, id: nuevoUsuario.id });
+
+    const datosSesion = await rs.get({
+      app: rsApp,
+      token: session.token // Asegúrate de usar el campo correcto del token de la sesión
+    });
+
+    console.log('Datos de la sesión:', datosSesion);
   } catch (err) {
     console.error('Error al procesar los datos:', err);
-    res.status(500).json({ error: 'Error al procesar los datos' });
+
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error al procesar los datos' });
+    }
   }
 });
-// app.post('/submit-score', async (req, res) => {
-//   const { cedula, nombre } = req.body;
-
-//   if (!cedula || !nombre) {
-//     console.error('Cédula o nombre faltantes');
-//     return res.status(400).json({ error: 'Cédula y nombre son requeridos' });
-//   }
-
-//   try {
-//     console.log(`Datos recibidos: cédula=${cedula}, nombre=${nombre}`);
-    
-//     // Guarda los datos en la base de datos
-//     const score = await Score.create({ cedula, nombre });
-
-//     res.json({ message: 'Datos recibidos correctamente', cedula: score.cedula, nombre: score.nombre });
-//   } catch (err) {
-//     console.error('Error al procesar los datos:', err);
-//     res.status(500).json({ error: 'Error al procesar los datos' });
-//   }
-// });
 
 
 app.listen(port, async () => {
@@ -85,56 +89,71 @@ app.listen(port, async () => {
   console.log(`Servidor escuchando en http://localhost:${port}`);
 });
 
-// Código para Redis manejo de cálculo de tiro
 app.post('/calculate-score', async (req, res) => {
-  const { tiro, puntos, makeGoal, area } = req.body;
+  const { puntos, makeGoal, area, token } = req.body;
 
-  if (tiro === undefined || puntos === undefined || makeGoal === undefined || area === undefined) {
+  if (!token) {
+    console.error('Token faltante');
+    return res.status(400).json({ error: 'Token es requerido' });
+  }
+
+  if (puntos === undefined || makeGoal === undefined || area === undefined) {
     console.error('Datos faltantes');
     return res.status(400).json({ error: 'Todos los datos son requeridos' });
   }
 
-  const throwsKey = `throws:${area}`;
-  const totalScoreKey = `totalScore`;
-
   try {
-    await redisClient.hSet(throwsKey, `throw${tiro}`, puntos.toString());
-    console.log(`Tiro almacenado en Redis: tiro=${tiro}, puntos=${puntos}, makeGoal=${makeGoal}, area=${area}`);
-    console.log('si llego aqui');
+    // Recuperar session token
+    const sessionData = await rs.get({
+      app: rsApp,
+      token: token
+    });
 
-    const throws = await redisClient.hGetAll(throwsKey);
-    console.log('Tiros almacenados:', throws);
+    if (!sessionData) {
+      console.error('Token no válido');
+      return res.status(400).json({ error: 'Token no válido' });
+    }
 
-    // Calcular el puntaje total para este área específica
-    const totalAreaScore = Object.values(throws).reduce((acc, val) => {
+    console.log('Datos de la sesión:', sessionData);
+
+    // Obtener el contador de tiros actual, si no existe inicializar en 0
+    const currentThrow = sessionData.d.throwCount || 0;
+    const nextThrow = currentThrow + 1;
+
+    
+
+    console.log(`Tiro almacenado en Redis: tiro=${nextThrow}, puntos=${puntos}, makeGoal=${makeGoal}, area=${area}`);
+
+    // Obtener los datos actualizados de la sesión
+    const updatedSessionData = await rs.get({
+      app: rsApp,
+      token: token
+    });
+
+    const totalAreaScore = Object.values(updatedSessionData.d).reduce((acc, val) => {
       const intVal = parseInt(val);
       if (isNaN(intVal)) {
-        console.error(`Valor no es un entero: ${val}`);
         return acc;
       }
       return acc + intVal;
     }, 0);
 
-    // Obtener el totalScore actual
-    let totalScore = 0;
-    const existingTotalScore = await redisClient.get(totalScoreKey);
-    if (existingTotalScore !== null) {
-      totalScore = parseInt(existingTotalScore);
-    }
+    const scoreFactor = 2;
+    const goalFactor = makeGoal ? 3 : 1;
+    const areaFactor = Math.floor(area / 2);
 
-    const scoreFactor = 2; // Factor base reducido
-    const goalFactor = makeGoal ? 3 : 1; // Factor si se hizo gol reducido
-    const areaFactor = Math.floor(area / 2); // Factor del área reducido
-
-    // Limitar puntos para evitar valores excesivos
     const calculatedPoints = Math.floor(puntos * scoreFactor * goalFactor * areaFactor);
+    const totalScore = totalAreaScore + calculatedPoints;
 
-    // Calcular el nuevo totalScore
-    totalScore += calculatedPoints;
-
-    // Almacenar el totalScore actualizado en Redis
-    await redisClient.set(totalScoreKey, totalScore.toString());
-    console.log('totalScore almacenado:', totalScore);
+    // Guardar el totalScore en Redis
+    await rs.set({
+      app: rsApp,
+      token: token,
+      d: {
+        ...updatedSessionData.d,
+        totalScore: totalScore
+      }
+    });
 
     res.json({ message: 'Tiro almacenado en Redis', totalScore: totalScore });
   } catch (err) {
@@ -144,3 +163,40 @@ app.post('/calculate-score', async (req, res) => {
 });
 
 
+// crear un metodo para guardar en mysql el total de puntos y los datos de la sesion
+app.post('/save-score', async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    console.error('Token faltante');
+    return res.status(400).json({ error: 'Token es requerido' });
+  }
+
+  try {
+    // Recuperar session token
+    const sessionData = await rs.get({
+      app: rsApp,
+      token: token
+    });
+
+    if (!sessionData) {
+      console.error('Token no válido');
+      return res.status(400).json({ error: 'Token no válido' });
+    }
+
+    console.log('Datos de la sesión:', sessionData);
+
+    const { cedula, nombre } = sessionData.d;
+    const totalScore = sessionData.d.totalScore || 0;
+
+    // actualizar la base de datos con los datos de la sesion
+    await User.update({ totalScore }, { where: { cedula } });
+
+
+
+    res.json({ message: 'Datos guardados correctamente', cedula, nombre, totalScore });
+  } catch (err) {
+    console.error('Error al procesar los datos:', err);
+    res.status(500).json({ error: 'Error al procesar los datos' });
+  }
+});
