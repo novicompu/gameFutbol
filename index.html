@@ -10,7 +10,8 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0,minimal-ui" />
     <meta name="msapplication-tap-highlight" content="no"/>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
   
     <script>
         let verJuego = true;
@@ -61,14 +62,14 @@
             // if (!validarCedula() || !validarNombre()) {
             //     return;
             // }
-    
+
             var formData = {
                 cedula: document.getElementById('cedula').value.trim(),
                 nombre: document.getElementById('nombre').value.trim()
             };
             console.log('Datos del formulario:', formData);
             
-            fetch('http://localhost:3001/submit-score', {
+            fetch('http://localhost:3001/submit-login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -77,13 +78,15 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Respuesta del servidor:',data);
+                console.log('Respuesta del servidor:', data);
                 
                 if (data.error) {
                     console.error('Error en la respuesta del servidor:', data.error);
                 } else {
                     console.log('Datos enviados:', data);
                     verJuego = true;
+                    // activar gameContainer
+                    document.getElementById('game-container').style.display = 'block';
                     console.log('Cargando scripts del juego...');
                     loadGameScripts();
                 }
@@ -93,7 +96,6 @@
                 console.error('Error al enviar los datos:', error);
             });
         }
-    
         function loadScript(src, callback) {
             let script = document.createElement('script');
             script.type = 'text/javascript';
@@ -267,7 +269,7 @@
             </div>
         </form>
     </div>
-    {verJuego ? 
+    
     <div id="game-container" style="display:none;">
         <div style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%"></div>
         <div id="timer" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); font-size: 104px; color: white; z-index: 1000;"></div>
@@ -279,12 +281,6 @@
         <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
         <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
     </div>
-    : null}
-    <script>
-        if (verJuego) {
-            document.getElementById('game-container').style.display = 'block';
-        }
-    </script>
 
 </body>
 </html>
