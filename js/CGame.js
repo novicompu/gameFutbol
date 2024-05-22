@@ -25,7 +25,7 @@ function CGame(oData) {
     var _bMakeGoal = false;
     var _bPoleCollide = false;
     var _iLevel = 1;
-    var _iScore;
+    var _iScore = 0;
     var _iArea;
     var _iLaunch = 0;
     var _iCombo = 0;
@@ -361,7 +361,7 @@ function CGame(oData) {
         var iProbability = AREAS_INFO[_iArea].probability;
         var iSub = MAX_PERCENT_PROBABILITY - iProbability;
         var iScoreNoMult = (MAX_PERCENT_PROBABILITY - iSub);
-        this.addScore(iScoreNoMult * _fMultiplier, iScoreNoMult);
+        //this.addScore(iScoreNoMult * _fMultiplier, iScoreNoMult);
         _fMultiplier += MULTIPLIER_STEP;
     };
 
@@ -402,49 +402,65 @@ function CGame(oData) {
         
     // };
 
-    this.addImpulseToBall = function(oDir) {
-        if (_bLaunched || _iGameState !== STATE_PLAY) {
-            return;
-        }
-    
-        var oBall = _oScene.ballBody();
-        _oScene.addImpulse(oBall, oDir);
-        _oScene.setElementAngularVelocity(oBall, { x: 0, y: 0, z: 0 });
-        _bLaunched = true;
-        _oBall.setVisible(true);
-        _oStartBall.setVisible(false);
-        this.chooseDirectionGoalKeeper(oDir);
-        playSound("kick", 1, false);
-    
-        // Datos del tiro
-        var tiro = _iLaunch + 1;
-        var puntos = Math.floor(Math.random() * 10); // Reemplaza esto con la lógica correcta para calcular los puntos
-        var makeGoal = _bMakeGoal;
-        var area = _iArea;
-    
-        //Enviar datos al backend
-        fetch('http://localhost:3001/calculate-score', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                tiro: tiro,
-                puntos: puntos,
-                makeGoal: makeGoal,
-                area: area
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Datos enviados:', data);
-            // Actualizar el puntaje en la interfaz
-            _oInterface.refreshTextScoreBoard(data.totalScore, 1, data.totalScore, true);
-        })
-        .catch(error => {
-            console.error('Error al enviar los datos:', error);
-        });
+    // Asegúrate de incluir la biblioteca CryptoJS
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/crypto-js.min.js"></script>
+
+this.addImpulseToBall = function(oDir) {
+    if (_bLaunched || _iGameState !== STATE_PLAY) {
+        return;
+    }
+
+    var oBall = _oScene.ballBody();
+    _oScene.addImpulse(oBall, oDir);
+    _oScene.setElementAngularVelocity(oBall, { x: 0, y: 0, z: 0 });
+    _bLaunched = true;
+    _oBall.setVisible(true);
+    _oStartBall.setVisible(false);
+    this.chooseDirectionGoalKeeper(oDir);
+    playSound("kick", 1, false);
+
+    // Datos del tiro
+    var tiro = _iLaunch + 1;
+    var makeGoal = _bMakeGoal;
+    var area = _iArea;
+
+    // Datos a encriptar
+    var data = {
+        tiro: tiro,
+        puntos: 0, // Enviar puntos como 0 porque solo usaremos el valor del API
+        makeGoal: makeGoal,
+        area: area,
+        token: localStorage.getItem('token')
     };
+
+    // Encriptar los datos
+    var secretPassphrase = "mySecretPassphrase"; // O usar una variable de entorno si es posible
+    var encryptedData = CryptoJS.TripleDES.encrypt(JSON.stringify(data), secretPassphrase).toString();
+
+    // Enviar datos al backend
+    fetch('http://localhost:3001/calculate-score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            dataGame: encryptedData  // Asegúrate de que el campo sea 'dataGame'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Datos enviados:', data);
+        // Actualizar la variable de puntaje con el valor del API
+        _iScore = data.totalScore;
+        // Actualizar el puntaje en la interfaz solo con el valor del API
+        _oInterface.refreshTextScoreBoard(data.totalScore, 1, data.totalScore, false);
+    })
+    .catch(error => {
+        console.error('Error al enviar los datos:', error);
+    });
+};
+
+
     
     
     
@@ -896,12 +912,43 @@ function CGame(oData) {
         _oCamera.updateProjectionMatrix();
         _oCamera.updateMatrixWorld();
     };
+    // this.gameOver = function () {
+    //     _iGameState = STATE_FINISH;
+    //     _oInterface.createWinPanel(Math.floor(_iScore));
+    //     $(s_oMain).trigger("end_level", _iLevel);
+    //     $(s_oMain).trigger("save_score", [_iScore, "game_over"]); // Disparar el evento "save_score" para indicar el final del juego
+    // };
     this.gameOver = function () {
         _iGameState = STATE_FINISH;
         _oInterface.createWinPanel(Math.floor(_iScore));
         $(s_oMain).trigger("end_level", _iLevel);
-        $(s_oMain).trigger("save_score", [_iScore, "game_over"]); // Disparar el evento "save_score" para indicar el final del juego
+        
+        // Disparar el evento "save_score" para indicar el final del juego y guardar el puntaje
+        const token = localStorage.getItem('token');
+        const totalScore = _iScore;
+    
+        fetch('http://localhost:3001/save-score', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                token: token, // Asegúrate de que el token esté disponible en el almacenamiento local
+                totalScore: totalScore
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Puntaje guardado exitosamente:', data);
+            
+        })
+        .catch(error => {
+            console.error('Error al guardar el puntaje:', error);
+            // Aquí puedes manejar cualquier error ocurrido durante la solicitud
+            alert('Error al guardar el puntaje. Por favor, intenta nuevamente.');
+        });
     };
+    
 
     s_oGame = this;
 

@@ -11,8 +11,24 @@
     <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0,minimal-ui" />
     <meta name="msapplication-tap-highlight" content="no"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet">
   
+    <style>
+        #user-info-form {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 100%;
+            max-width: 400px;
+        }
+    </style>
     <script>
         let verJuego = true;
     
@@ -77,6 +93,7 @@
                 body: JSON.stringify(formData)
             })
             .then(response => response.json())
+            
             .then(data => {
                 console.log('Respuesta del servidor:', data);
                 
@@ -84,6 +101,8 @@
                     console.error('Error en la respuesta del servidor:', data.error);
                 } else {
                     console.log('Datos enviados:', data);
+                    // guardar datos en localStorage
+                    localStorage.setItem('token', data.token);  
                     verJuego = true;
                     // activar gameContainer
                     document.getElementById('game-container').style.display = 'block';
@@ -250,23 +269,23 @@
 <body ondragstart="return false;" ondrop="return false;">
     <img src="sprites/bg_game.jpg"
         alt="Logo" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;">
-    <div id="user-info-form" style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: white; padding: 40px; border-radius: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; width: 400px;">
-        
-        <h2 style="text-align: center; font-size: 32px; margin-bottom: 30px; color: #333;">Ingresa tus datos</h2>
+    <div id="user-info-form">
+        <h2 class="text-center text-primary mb-4">Ingresa tus datos</h2>
         <form id="user-form" action="#">
-            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
-                <label for="cedula" style="font-size: 30px; margin-bottom: 14px;">Cédula:</label>
-                <input type="text" id="cedula" name="cedula" required style="width: 350px; height: 40px; font-size: 18px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+            <div class="form-group">
+                <label for="cedula" class="h5">Cédula:</label>
+                <input type="text" id="cedula" name="cedula" required class="form-control">
             </div>
-            <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 30px;">
-                <label for="nombre" style="font-size: 30px; margin-bottom: 14px;">Usuario:</label>
-                <input type="text" id="nombre" name="nombre" required style="width: 350px; height: 40px; font-size: 18px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+            <div class="form-group">
+                <label for="nombre" class="h5">Usuario:</label>
+                <input type="text" id="nombre" name="nombre" required class="form-control">
             </div>
-            <p id="salida" style="text-align: center; font-size: 20px; color: red; margin-bottom: 20px;"></p>
-
-            <div style="display: flex; justify-content: center;">
-                <button id="submit-button" onclick="submitForm(event)" type="button" style="width: 100%; padding: 30px; display: flex; justify-content: center; align-items: center; height: 50px; font-size: 30px; background-color: #4CAF50; color: white; border: none; border-radius: 10px; cursor: pointer; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">Enviar</button>
+            <p id="salida" class="text-center text-danger"></p>
+            <div class="d-flex justify-content-center w-100">
+                <button id="submit-button" onclick="submitForm(event)" type="button" class="btn btn-success btn-lg btn-block w-100">Enviar</button>
             </div>
+            <br>
+            <button id="show-scores-button" type="button" class="btn btn-primary btn-lg btn-block w-100">Ver mejores puntajes</button>
         </form>
     </div>
     
@@ -281,6 +300,70 @@
         <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
         <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
     </div>
+
+    
+    <div id="scores-table-container" style="display:none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, -20%); background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; width: 80%;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="text-align: center; margin-bottom: 20px; flex: 1;">Mejores puntajes</h2>
+        </div>
+        <table id="scores-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Nombre</th>
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Puntaje Total</th>
+                </tr>
+            </thead>
+            <tbody id="scores-table-body" style="text-align: center;">
+                <!-- Los puntajes se insertarán aquí dinámicamente -->
+            </tbody>
+        </table>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button id="close-scores-button" style="width: 30%;
+                padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>
+       
+        </div>
+        
+    </div>
+
+    <script>
+        document.getElementById('show-scores-button').addEventListener('click', function() {
+            fetch('http://localhost:3001/get-best-scores')
+                .then(response => response.json())
+                .then(data => {
+                    const scoresTable = document.getElementById('scores-table').getElementsByTagName('tbody')[0];
+                    scoresTable.innerHTML = ''; // Limpiar la tabla
+
+                    data.forEach(score => {
+                        const row = scoresTable.insertRow();
+                        const nombreCell = row.insertCell(0);
+                        const totalScoreCell = row.insertCell(1);
+
+                        nombreCell.textContent = score.nombre;
+                        totalScoreCell.textContent = score.totalScore;
+                    });
+
+                    document.getElementById('scores-table-container').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error al obtener los puntajes:', error);
+                });
+        });
+
+        document.getElementById('close-scores-button').addEventListener('click', function() {
+            document.getElementById('scores-table-container').style.display = 'none';
+        });
+
+        // Para cerrar el modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const scoresTableContainer = document.getElementById('scores-table-container');
+            if (event.target == scoresTableContainer) {
+                scoresTableContainer.style.display = "none";
+            }
+        }
+
+
+    </script>
 
 </body>
 </html>

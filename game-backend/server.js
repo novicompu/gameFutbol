@@ -8,6 +8,8 @@ const RedisSessions = require('redis-sessions').default;
 const app = express();
 const port = process.env.PORT || 3001;
 const User = require('./models/Score');
+const CryptoJS = require('crypto-js');
+
 
 // Configuración de RedisSessions
 const rs = new RedisSessions({
@@ -21,7 +23,7 @@ const rs = new RedisSessions({
 const rsApp = "myapp"; 
 
 app.use(cors({
-  origin: 'http://127.0.0.1:5500'
+  origin: '*',
 }));
 
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -42,7 +44,8 @@ app.post('/submit-login', async (req, res) => {
 
     if (usuarioExistente) {
       console.log(`La cédula ${cedula} ya existe.`);
-      return res.status(400).json({ error: 'La cédula ya está registrada' });
+      // Return 200 (OK) instead of 400 (Bad Request)
+      return res.status(200).json({ message: 'Usuario ya registrado' });
     }
 
     // Crear una nueva sesión en Redis
@@ -60,7 +63,8 @@ app.post('/submit-login', async (req, res) => {
     // Guardar los datos en la base de datos MySQL
     const nuevoUsuario = await User.create({ cedula, nombre, totalScore });
 
-    res.json({ message: 'Datos recibidos y guardados correctamente', cedula, nombre, id: nuevoUsuario.id });
+    // Devolver el token de la sesión
+    res.json({ message: 'Datos recibidos y guardados correctamente', token: session.token });
 
     const datosSesion = await rs.get({
       app: rsApp,
@@ -90,19 +94,34 @@ app.listen(port, async () => {
 });
 
 app.post('/calculate-score', async (req, res) => {
-  const { puntos, makeGoal, area, token } = req.body;
+  const { dataGame } = req.body;
 
-  if (!token) {
+  console.log('Datos del juego:', dataGame);
+  if (!dataGame) {
     console.error('Token faltante');
     return res.status(400).json({ error: 'Token es requerido' });
   }
 
-  if (puntos === undefined || makeGoal === undefined || area === undefined) {
-    console.error('Datos faltantes');
-    return res.status(400).json({ error: 'Todos los datos son requeridos' });
-  }
-
   try {
+    // Desencriptar los datos
+    const secretPassphrase = "mySecretPassphrase";
+    const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
+    const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+
+    const { puntos, makeGoal, area, token } = decryptedData;
+
+    console.log('Datos desencriptados:', decryptedData);
+
+    if (!token) {
+      console.error('Token faltante');
+      return res.status(400).json({ error: 'Token es requerido' });
+    }
+
+    if (puntos === undefined || makeGoal === undefined || area === undefined) {
+      console.error('Datos faltantes');
+      return res.status(400).json({ error: 'Todos los datos son requeridos' });
+    }
+
     // Recuperar session token
     const sessionData = await rs.get({
       app: rsApp,
@@ -120,42 +139,33 @@ app.post('/calculate-score', async (req, res) => {
     const currentThrow = sessionData.d.throwCount || 0;
     const nextThrow = currentThrow + 1;
 
-    
+    // Calcular puntos
+    let calculatedPoints = 0;
+    if (makeGoal) {
+      const scoreFactor = 2;
+      const goalFactor = 3;
+      const areaFactor = Math.floor(area / 2);
+      calculatedPoints =  (scoreFactor * goalFactor * areaFactor) + puntos;
+    }
 
-    console.log(`Tiro almacenado en Redis: tiro=${nextThrow}, puntos=${puntos}, makeGoal=${makeGoal}, area=${area}`);
+    const totalScore = sessionData.d.totalScore || 0;
+    const newTotalScore = totalScore + calculatedPoints;
 
-    // Obtener los datos actualizados de la sesión
-    const updatedSessionData = await rs.get({
-      app: rsApp,
-      token: token
-    });
+    console.log(`total score nuevo: ${newTotalScore}`);
 
-    const totalAreaScore = Object.values(updatedSessionData.d).reduce((acc, val) => {
-      const intVal = parseInt(val);
-      if (isNaN(intVal)) {
-        return acc;
-      }
-      return acc + intVal;
-    }, 0);
-
-    const scoreFactor = 2;
-    const goalFactor = makeGoal ? 3 : 1;
-    const areaFactor = Math.floor(area / 2);
-
-    const calculatedPoints = Math.floor(puntos * scoreFactor * goalFactor * areaFactor);
-    const totalScore = totalAreaScore + calculatedPoints;
-
-    // Guardar el totalScore en Redis
+    // Guardar el totalScore y el contador de tiros en Redis
     await rs.set({
       app: rsApp,
       token: token,
       d: {
-        ...updatedSessionData.d,
-        totalScore: totalScore
+        ...sessionData.d,
+        totalScore: newTotalScore,
+        throwCount: nextThrow
       }
     });
 
-    res.json({ message: 'Tiro almacenado en Redis', totalScore: totalScore });
+    console.log('Total de puntos:', newTotalScore);
+    res.json({ message: 'Tiro almacenado en Redis', totalScore: newTotalScore });
   } catch (err) {
     console.error('Error al almacenar en Redis:', err);
     res.status(500).json({ error: 'Error al almacenar los datos' });
@@ -163,9 +173,13 @@ app.post('/calculate-score', async (req, res) => {
 });
 
 
-// crear un metodo para guardar en mysql el total de puntos y los datos de la sesion
+
+
+
 app.post('/save-score', async (req, res) => {
-  const { token } = req.body;
+  const { token, totalScore } = req.body;
+
+  console.log('total score a guardar:', totalScore);
 
   if (!token) {
     console.error('Token faltante');
@@ -186,17 +200,31 @@ app.post('/save-score', async (req, res) => {
 
     console.log('Datos de la sesión:', sessionData);
 
+    // Guardar los datos en la base de datos MySQL
     const { cedula, nombre } = sessionData.d;
-    const totalScore = sessionData.d.totalScore || 0;
+    
+    await User.upsert({ cedula, nombre, totalScore });
 
-    // actualizar la base de datos con los datos de la sesion
-    await User.update({ totalScore }, { where: { cedula } });
-
-
-
-    res.json({ message: 'Datos guardados correctamente', cedula, nombre, totalScore });
+    res.json({ message: 'Datos guardados en MySQL', totalScore });
   } catch (err) {
-    console.error('Error al procesar los datos:', err);
-    res.status(500).json({ error: 'Error al procesar los datos' });
+    console.error('Error al guardar en MySQL:', err);
+    res.status(500).json({ error: 'Error al guardar los datos' });
+  }
+});
+
+
+// metodo para obtener los 10 mejores puntajes de la base de datos solo mostrara el nombre y el puntaje
+app.get('/get-best-scores', async (req, res) => {
+  try {
+    const scores = await User.findAll({
+      attributes: ['nombre', 'totalScore'],
+      order: [['totalScore', 'DESC']],
+      limit: 10
+    });
+
+    res.json(scores);
+  } catch (err) {
+    console.error('Error al obtener los puntajes:', err);
+    res.status(500).json({ error: 'Error al obtener los puntajes' });
   }
 });
