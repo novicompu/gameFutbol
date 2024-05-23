@@ -211,6 +211,8 @@
                     clearInterval(timerInterval);
                     document.getElementById('timer').innerText = "00:00";
                     endGame();
+                    // ocultar el timer
+                    document.getElementById('timer').style.display = 'none';
                     return;
                 }
                 var minutes = Math.floor(remainingTime / 60000);
@@ -308,7 +310,8 @@
         </div>
         <table id="scores-table" style="width: 100%; border-collapse: collapse;">
             <thead>
-                <tr>
+                <tr style="text-align: center;">
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Posición</th>
                     <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Nombre</th>
                     <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Puntaje Total</th>
                 </tr>
@@ -317,15 +320,12 @@
                 <!-- Los puntajes se insertarán aquí dinámicamente -->
             </tbody>
         </table>
-
+    
         <div style="display: flex; justify-content: center; margin-top: 20px;">
-            <button id="close-scores-button" style="width: 30%;
-                padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>
-       
+            <button id="close-scores-button" style="width: 30%; padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>
         </div>
-        
     </div>
-
+    
     <script>
         document.getElementById('show-scores-button').addEventListener('click', function() {
             fetch('http://localhost:3001/get-best-scores')
@@ -333,27 +333,29 @@
                 .then(data => {
                     const scoresTable = document.getElementById('scores-table').getElementsByTagName('tbody')[0];
                     scoresTable.innerHTML = ''; // Limpiar la tabla
-
-                    data.forEach(score => {
+    
+                    data.forEach((score, index) => {
                         const row = scoresTable.insertRow();
-                        const nombreCell = row.insertCell(0);
-                        const totalScoreCell = row.insertCell(1);
-
+                        const posicionCell = row.insertCell(0);
+                        const nombreCell = row.insertCell(1);
+                        const totalScoreCell = row.insertCell(2);
+    
+                        posicionCell.textContent = index + 1; // Asignar la posición
                         nombreCell.textContent = score.nombre;
                         totalScoreCell.textContent = score.totalScore;
                     });
-
+    
                     document.getElementById('scores-table-container').style.display = 'block';
                 })
                 .catch(error => {
                     console.error('Error al obtener los puntajes:', error);
                 });
         });
-
+    
         document.getElementById('close-scores-button').addEventListener('click', function() {
             document.getElementById('scores-table-container').style.display = 'none';
         });
-
+    
         // Para cerrar el modal al hacer clic fuera de él
         window.onclick = function(event) {
             const scoresTableContainer = document.getElementById('scores-table-container');
@@ -361,9 +363,8 @@
                 scoresTableContainer.style.display = "none";
             }
         }
-
-
     </script>
+    
 
 </body>
 </html>

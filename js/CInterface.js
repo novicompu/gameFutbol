@@ -24,18 +24,22 @@ function CInterface() {
         _pStartPosGuiBox = {x: 0, y: 0};
 
         var oSprite = s_oSpriteLibrary.getSprite('but_exit');
-        _pStartPosExit = {x: CANVAS_WIDTH - (oSprite.height / 2) - 10, y: (oSprite.height / 2) + 10};
+        // Mueve el botón de salir fuera de la pantalla
+        _pStartPosExit = {x: CANVAS_WIDTH + (oSprite.height / 2) + 10, y: (oSprite.height / 2) + 10};
         _oButExit = new CGfxButton(_pStartPosExit.x, _pStartPosExit.y, oSprite);
-        _oButExit.addEventListener(ON_MOUSE_UP, this._onExit, this);
+        //_oButExit.addEventListener(ON_MOUSE_UP, this._onExit, this);
 
         var oSprite = s_oSpriteLibrary.getSprite('but_pause');
-        _pStartPosPause = {x: _pStartPosExit.x - oSprite.height - 10, y: _pStartPosExit.y};
+        // Mueve el botón de pausa fuera de la pantalla
+        _pStartPosPause = {x: _pStartPosExit.x + oSprite.height + 10, y: _pStartPosExit.y};
         _oButPause = new CGfxButton(_pStartPosPause.x, _pStartPosPause.y, oSprite);
-        _oButPause.addEventListener(ON_MOUSE_UP, this.onButPauseRelease, this);
+        //_oButPause.addEventListener(ON_MOUSE_UP, this.onButPauseRelease, this);
 
         if (DISABLE_SOUND_MOBILE === false || s_bMobile === false) {
             var oSprite = s_oSpriteLibrary.getSprite('audio_icon');
-            _pStartPosAudio = {x: _pStartPosPause.x - oSprite.height - 10, y: _pStartPosExit.y};
+            // Mantén el botón de sonido en su posición original
+            _pStartPosAudio = {x: CANVAS_WIDTH - oSprite.width / 2 - 10, y: (oSprite.height / 2) + 10};
+
             _oAudioToggle = new CToggle(_pStartPosAudio.x, _pStartPosAudio.y, oSprite, s_bAudioActive);
             _oAudioToggle.addEventListener(ON_MOUSE_UP, this._onAudioToggle, this);
         }
@@ -65,8 +69,9 @@ function CInterface() {
     };
 
     this.refreshButtonPos = function (iNewX, iNewY) {
-        _oButExit.setPosition(_pStartPosExit.x - iNewX, iNewY + _pStartPosExit.y);
-        _oButPause.setPosition(_pStartPosPause.x - iNewX, iNewY + _pStartPosPause.y);
+        // Actualiza las posiciones de los botones de salir y pausa fuera de la pantalla
+        _oButExit.setPosition(_pStartPosExit.x, _pStartPosExit.y);
+        _oButPause.setPosition(_pStartPosPause.x, _pStartPosPause.y);
 
         if (DISABLE_SOUND_MOBILE === false || s_bMobile === false) {
             _oAudioToggle.setPosition(_pStartPosAudio.x - iNewX, iNewY + _pStartPosAudio.y);
@@ -112,37 +117,30 @@ function CInterface() {
         _oWinPanel.show(iScore);
     };
 
-
-    // this.refreshTextScoreBoard = function (iScore, fMultiplier, iScoreNoMult, bEffect) {
-    //     _oScoreBoard.refreshTextScore(iScore);
-    //     if (bEffect)
-    //         _oScoreBoard.effectAddScore(iScoreNoMult, fMultiplier);
-    // };
     this.refreshTextScoreBoard = function (iScore, fMultiplier, iScoreNoMult, bEffect) {
         _oScoreBoard.refreshTextScore(iScore);
         if (bEffect) {
             _oScoreBoard.effectAddScore(iScoreNoMult, fMultiplier);
         }
     };
-    
-    
-    this.resetFullscreenBut = function(){
-	if (_fRequestFullScreen && screenfull.isEnabled){
-		_oButFullscreen.setActive(s_bFullscreen);
-	}
-    };
-    
-    this._onFullscreen = function () {
-        if(s_bFullscreen) { 
-		_fCancelFullScreen.call(window.document);
-	}else{
-		_fRequestFullScreen.call(window.document.documentElement);
-	}
-	
-	sizeHandler();
+
+    this.resetFullscreenBut = function () {
+        if (_fRequestFullScreen && screenfull.isEnabled) {
+            _oButFullscreen.setActive(s_bFullscreen);
+        }
     };
 
-    this.createAnimText = function (szText, iSize, bStrobo, szColor, szColorStroke) {//TEXT_BALL_OUT, 90, false, TEXT_COLOR_1, TEXT_COLOR_STROKE
+    this._onFullscreen = function () {
+        if (s_bFullscreen) {
+            _fCancelFullScreen.call(window.document);
+        } else {
+            _fRequestFullScreen.call(window.document.documentElement);
+        }
+
+        sizeHandler();
+    };
+
+    this.createAnimText = function (szText, iSize, bStrobo, szColor, szColorStroke) {
         var oContainer = new createjs.Container();
 
         var oTextStroke = new createjs.Text(szText, iSize + "px " + FONT_GAME, szColorStroke);
@@ -163,7 +161,6 @@ function CInterface() {
 
         if (bStrobo) {
             s_oInterface.strobeText(oText);
-
         }
 
         s_oStage.addChild(oContainer);

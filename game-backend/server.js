@@ -39,15 +39,6 @@ app.post('/submit-login', async (req, res) => {
   }
 
   try {
-    // Verificar si la cédula ya existe en la base de datos
-    const usuarioExistente = await User.findOne({ where: { cedula } });
-
-    if (usuarioExistente) {
-      console.log(`La cédula ${cedula} ya existe.`);
-      // Return 200 (OK) instead of 400 (Bad Request)
-      return res.status(200).json({ message: 'Usuario ya registrado' });
-    }
-
     // Crear una nueva sesión en Redis
     const session = await rs.create({
       app: rsApp,
@@ -56,6 +47,16 @@ app.post('/submit-login', async (req, res) => {
       ttl: 3600,
       d: { nombre, cedula, totalScore }
     });
+    // Verificar si la cédula ya existe en la base de datos
+    const usuarioExistente = await User.findOne({ where: { cedula } });
+
+    if (usuarioExistente) {
+      console.log(`La cédula ${cedula} ya existe.`);
+      // Return 200 (OK) instead of 400 (Bad Request) y devolver el token de la sesión
+      return res.status(200).json({ message: 'Usuario ya registrado', token: session.token });
+    }
+
+    
 
     console.log('Sesión creada:', session.token);
     console.log(`Datos recibidos: cédula=${cedula}, nombre=${nombre}`);
@@ -66,12 +67,6 @@ app.post('/submit-login', async (req, res) => {
     // Devolver el token de la sesión
     res.json({ message: 'Datos recibidos y guardados correctamente', token: session.token });
 
-    const datosSesion = await rs.get({
-      app: rsApp,
-      token: session.token // Asegúrate de usar el campo correcto del token de la sesión
-    });
-
-    console.log('Datos de la sesión:', datosSesion);
   } catch (err) {
     console.error('Error al procesar los datos:', err);
 
@@ -176,6 +171,64 @@ app.post('/calculate-score', async (req, res) => {
 
 
 
+// app.post('/save-score', async (req, res) => {
+//   const { token, totalScore } = req.body;
+
+//   console.log('total score a guardar:', totalScore);
+
+//   if (!token) {
+//     console.error('Token faltante');
+//     return res.status(400).json({ error: 'Token es requerido' });
+//   }
+
+//   try {
+//     // Recuperar session token
+//     const sessionData = await rs.get({
+//       app: rsApp,
+//       token: token
+//     });
+
+//     if (!sessionData) {
+//       console.error('Token no válido');
+//       return res.status(400).json({ error: 'Token no válido' });
+//     }
+
+//     console.log('Datos de la sesión:', sessionData);
+
+//     // Guardar los datos en la base de datos MySQL
+//     const { cedula, nombre } = sessionData.d;
+    
+//     // Recuperar el usuario actual para verificar el totalScore
+//     const usuario = await User.findOne({ where: { cedula } });
+
+//     if (usuario) {
+//       if (totalScore > usuario.totalScore) {
+//         await User.update({ totalScore }, { where: { cedula } });
+//       } else {
+//         console.log(`Total score no actualizado, el nuevo score ${totalScore} no es mayor que el actual ${usuario.totalScore}`);
+//       }
+//     } else {
+//       console.error('Usuario no encontrado');
+//       return res.status(404).json({ error: 'Usuario no encontrado' });
+//     }
+
+//     // Eliminar la sesión de Redis
+//     await rs.kill({
+//       app: rsApp,
+//       token: token
+//     });
+
+//     res.json({ message: 'Datos guardados', totalScore });
+//   } catch (err) {
+//     console.error('Error al guardar en MySQL:', err);
+//     res.status(500).json({ error: 'Error al guardar los datos' });
+//   }
+// });
+
+
+
+// metodo para obtener los 10 mejores puntajes de la base de datos solo mostrara el nombre y el puntaje
+
 app.post('/save-score', async (req, res) => {
   const { token, totalScore } = req.body;
 
@@ -203,9 +256,31 @@ app.post('/save-score', async (req, res) => {
     // Guardar los datos en la base de datos MySQL
     const { cedula, nombre } = sessionData.d;
     
-    await User.upsert({ cedula, nombre, totalScore });
+    // Recuperar el usuario actual para verificar el totalScore
+    const usuario = await User.findOne({ where: { cedula } });
 
-    res.json({ message: 'Datos guardados en MySQL', totalScore });
+    if (usuario) {
+      let mejorScore = usuario.totalScore;
+
+      if (totalScore > usuario.totalScore) {
+        await User.update({ totalScore }, { where: { cedula } });
+        mejorScore = totalScore; // Actualizamos mejorScore al nuevo totalScore
+      } else {
+        console.log(`Total score no actualizado, el nuevo score ${totalScore} no es mayor que el actual ${usuario.totalScore}`);
+      }
+
+      // Eliminar la sesión de Redis
+      await rs.kill({
+        app: rsApp,
+        token: token
+      });
+
+      res.json({ message: 'Datos guardados', totalScore, mejorScore });
+    } else {
+      console.error('Usuario no encontrado');
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
   } catch (err) {
     console.error('Error al guardar en MySQL:', err);
     res.status(500).json({ error: 'Error al guardar los datos' });
@@ -213,7 +288,6 @@ app.post('/save-score', async (req, res) => {
 });
 
 
-// metodo para obtener los 10 mejores puntajes de la base de datos solo mostrara el nombre y el puntaje
 app.get('/get-best-scores', async (req, res) => {
   try {
     const scores = await User.findAll({
@@ -228,3 +302,52 @@ app.get('/get-best-scores', async (req, res) => {
     res.status(500).json({ error: 'Error al obtener los puntajes' });
   }
 });
+
+
+
+app.post('/restart-game', async (req, res) => {
+  const { token } = req.body;
+  
+
+  if (!token) {
+    console.error('Token faltante');
+    return res.status(400).json({ error: 'Token es requerido' });
+  }
+
+  try {
+    // Recuperar los datos de la sesión actual
+    const sessionData = await rs.get({
+      app: rsApp,
+      token: token
+    });
+
+    if (!sessionData) {
+      console.error('Token no válido');
+      return res.status(400).json({ error: 'Token no válido' });
+    }
+
+    const { cedula, nombre } = sessionData.d;
+
+    // Eliminar la sesión actual
+    await rs.kill({
+      app: rsApp,
+      token: token
+    });
+
+    // Crear una nueva sesión
+    const newSession = await rs.create({
+      app: rsApp,
+      id: cedula,
+      ip: req.ip,
+      ttl: 3600,
+      d: { nombre, cedula, totalScore: 0 }  // Iniciar con totalScore en 0
+    });
+
+    res.json({ message: 'Sesión reiniciada', token: newSession.token });
+  } catch (err) {
+    console.error('Error al reiniciar la sesión:', err);
+    res.status(500).json({ error: 'Error al reiniciar la sesión' });
+  }
+});
+
+

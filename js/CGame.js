@@ -26,6 +26,7 @@ function CGame(oData) {
     var _bPoleCollide = false;
     var _iLevel = 1;
     var _iScore = 0;
+    var _iBestScore = 0;
     var _iArea;
     var _iLaunch = 0;
     var _iCombo = 0;
@@ -65,14 +66,14 @@ function CGame(oData) {
         } else {
             _oCamera = createOrthoGraphicCamera();
         }
-        
-        var iSidePostWidth = 15; 
-        var iTopPostHeight = 15; 
+
+        var iSidePostWidth = 15;
+        var iTopPostHeight = 15;
         var oSprite = s_oSpriteLibrary.getSprite("goal");
         _pGoalSize = {w: oSprite.width - iSidePostWidth, h: oSprite.height - iTopPostHeight/2};
         _oGoal = new CGoal(291, 28, oSprite, _oContainerGame);
 
-        
+
         _oGoalKeeper = new CGoalKeeper(CANVAS_WIDTH_HALF - 100, CANVAS_HEIGHT_HALF - 225, _oContainerGame);
         _aObjects.push(_oGoalKeeper);
 
@@ -98,7 +99,7 @@ function CGame(oData) {
         }else{
 			TIME_SWIPE = 500;
 		}
-		
+
         _oHandSwipeAnim = new CHandSwipeAnim(START_HAND_SWIPE_POS, END_HAND_SWIPE_POS, s_oSpriteLibrary.getSprite(szImage), s_oStage);
         _oHandSwipeAnim.animAllSwipe();
 
@@ -179,7 +180,7 @@ function CGame(oData) {
     };
 
     this.onMouseDown = function (e) {
-        
+
         if (_bLaunched) {
             return;
         }
@@ -228,7 +229,7 @@ function CGame(oData) {
         if (_iTimePressDown > TIME_SWIPE) {
 			_iTimePressDown = 0;
 			return;
-            
+
         }
 
         var vHitDir2D = new CVector2(_oClickPoint.x - _oReleasePoint.x,
@@ -256,7 +257,7 @@ function CGame(oData) {
             _vHitDir.set(-vHitDir2D.getX() * FORCE_MULTIPLIER_AXIS.x, fForceY, vHitDir2D.getY() * FORCE_MULTIPLIER_AXIS.z);
 
             _bMakeGoal = s_oGame.goalProbability();
-        } 
+        }
 
         _oReleasePoint.x = 0;
         _oReleasePoint.y = 0;
@@ -399,7 +400,7 @@ function CGame(oData) {
     //     _oStartBall.setVisible(false);
     //     this.chooseDirectionGoalKeeper(oDir);
     //     playSound("kick", 1, false);
-        
+
     // };
 
     // Asegúrate de incluir la biblioteca CryptoJS
@@ -461,9 +462,9 @@ this.addImpulseToBall = function(oDir) {
 };
 
 
-    
-    
-    
+
+
+
     this.chooseDirectionGoalKeeper = function () {
 
         var pBallFinalPos = this.predictBallGoalPos(_vHitDir);
@@ -521,7 +522,7 @@ this.addImpulseToBall = function(oDir) {
 
     this.chooseWrongDirGK = function () {
         var aExclusionList = ANIM_GOAL_KEEPER_FAIL_EXCLUSION_LIST[_iArea];
-    
+
         var aAnim = new Array();
         for(var i=1; i<=AREA_GOALS_ANIM.length;i++){
             if(aExclusionList.indexOf(i) === -1){
@@ -535,7 +536,7 @@ this.addImpulseToBall = function(oDir) {
 
         _oGoalKeeper.runAnim(aAnim[iRandAnim]);
     };
-    
+
     this.predictBallGoalPos = function (pDirection) {
         var iNormalizedX = pDirection.x / pDirection.y;
         var iNormalizedY = pDirection.z / pDirection.y;
@@ -546,7 +547,7 @@ this.addImpulseToBall = function(oDir) {
 
         return {x: iFinalX, y: iFinalY};
     };
-    
+
     this.calculateAreaGoal = function (pDirection) {
         _iArea = -1;
 
@@ -679,12 +680,40 @@ this.addImpulseToBall = function(oDir) {
         }
     };
 
+    // this.restartGame = function () {
+
+        
+
+    //     this.resetValues();
+    //     this.resetScene();
+    //     _iGameState = STATE_PLAY;
+    //     _bLaunched = false;
+    // };
     this.restartGame = function () {
-        this.resetValues();
-        this.resetScene();
-        _iGameState = STATE_PLAY;
-        _bLaunched = false;
+        const token = localStorage.getItem('token');
+    
+        fetch('http://localhost:3001/restart-game', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ token: token })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Sesión reiniciada:', data);
+            localStorage.setItem('token', data.token); // Guardar el nuevo token en el almacenamiento local
+    
+            this.resetValues();
+            this.resetScene();
+            _iGameState = STATE_PLAY;
+            _bLaunched = false;
+        })
+        .catch(error => {
+            console.error('Error al reiniciar la sesión:', error);
+        });
     };
+    
 
     this.endTurn = function () {
         _iLaunch++;
@@ -912,18 +941,177 @@ this.addImpulseToBall = function(oDir) {
         _oCamera.updateProjectionMatrix();
         _oCamera.updateMatrixWorld();
     };
+
     // this.gameOver = function () {
     //     _iGameState = STATE_FINISH;
-    //     _oInterface.createWinPanel(Math.floor(_iScore));
+    
+    //     // Crear un grupo para la ventana de finalización
+    //     var oGroup = new createjs.Container();
+    //     oGroup.alpha = 0;
+    //     s_oStage.addChild(oGroup);
+    
+    //     var oFade = new createjs.Shape();
+    //     oFade.graphics.beginFill("black").drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    //     oFade.alpha = 0.5;
+    //     oGroup.addChild(oFade);
+    
+    //     var oBg = createBitmap(s_oSpriteLibrary.getSprite("msg_box"));
+    //     oBg.x = CANVAS_WIDTH_HALF;
+    //     oBg.y = CANVAS_HEIGHT_HALF;
+    //     oBg.regX = oBg.image.width * 0.5;
+    //     oBg.regY = oBg.image.height * 0.5;
+    //     oGroup.addChild(oBg);
+    
+    //     var oTitleText = new createjs.Text(TEXT_GAMEOVER, "80px " + FONT_GAME, TEXT_COLOR);
+    //     oTitleText.x = CANVAS_WIDTH_HALF;
+    //     oTitleText.y = CANVAS_HEIGHT_HALF - 180;
+    //     oTitleText.textAlign = "center";
+    //     oGroup.addChild(oTitleText);
+    
+    //     var oNewScoreText = new createjs.Text(TEXT_SCORE + ": " + Math.floor(_iScore), "50px " + FONT_GAME, TEXT_COLOR);
+    //     oNewScoreText.x = CANVAS_WIDTH_HALF;
+    //     oNewScoreText.y = CANVAS_HEIGHT_HALF - 70;
+    //     oNewScoreText.textAlign = "center";
+    //     oGroup.addChild(oNewScoreText);
+    
+    //     // Crear texto de mejor puntaje pero no agregarlo al grupo todavía
+    //     var oBestScoreText = new createjs.Text(TEXT_BEST_SCORE + ": " + s_iBestScore, "50px " + FONT_GAME, TEXT_COLOR);
+    //     oBestScoreText.x = CANVAS_WIDTH_HALF;
+    //     oBestScoreText.y = CANVAS_HEIGHT_HALF - 10;
+    //     oBestScoreText.textAlign = "center";
+    
+    //     // Crear una lista para los mejores puntajes
+    //     var oBestScoresList = new createjs.Container();
+    //     oBestScoresList.y = CANVAS_HEIGHT_HALF + 60;
+    //     oGroup.addChild(oBestScoresList);
+    
+    //     fetch('http://localhost:3001/get-best-scores')
+    //         .then(response => response.json())
+    //         .then(scores => {
+    //             var yPos = 0;
+    //             scores.forEach((score, index) => {
+    //                 var text = new createjs.Text(`${index + 1}. ${score.nombre}: ${score.totalScore}`, "30px " + FONT_GAME, "#fff");
+    //                 text.y = yPos;
+    //                 text.textAlign = "center";
+    //                 text.x = CANVAS_WIDTH_HALF;
+    //                 oBestScoresList.addChild(text);
+    //                 yPos += 40;
+    //             });
+    //         })
+    //         .catch(error => {
+    //             console.error('Error al obtener los mejores puntajes:', error);
+    //         });
+    
+    //     var oSpriteButRestart = s_oSpriteLibrary.getSprite("but_restart");
+    //     var oButRestart = new CGfxButton(CANVAS_WIDTH * 0.5, CANVAS_HEIGHT * 0.5 + 120, oSpriteButRestart, oGroup);
+    //     oButRestart.pulseAnimation();
+    //     oButRestart.addEventListener(ON_MOUSE_DOWN, function () {
+    //         oGroup.removeAllChildren();
+    //         s_oStage.removeChild(oGroup);
+    //         s_oGame.restartGame();
+    //     });
+    
+    //     createjs.Tween.get(oGroup).wait(MS_WAIT_SHOW_GAME_OVER_PANEL).to({alpha: 1}, 1250, createjs.Ease.cubicOut);
+    
     //     $(s_oMain).trigger("end_level", _iLevel);
-    //     $(s_oMain).trigger("save_score", [_iScore, "game_over"]); // Disparar el evento "save_score" para indicar el final del juego
+    
+    //     // Disparar el evento "save_score" para indicar el final del juego y guardar el puntaje
+    //     const token = localStorage.getItem('token');
+    //     const totalScore = _iScore;
+    
+    //     fetch('http://localhost:3001/save-score', {
+    //         method: 'POST',
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         },
+    //         body: JSON.stringify({
+    //             token: token,
+    //             totalScore: totalScore
+    //         })
+    //     })
+    //     .then(response => response.json())
+    //     .then(data => {
+    //         console.log('Puntaje guardado exitosamente:', data);
+            
+    //         // Actualizar los textos con los valores retornados
+    //         oNewScoreText.text = TEXT_SCORE + ": " + data.totalScore;
+    //         oBestScoreText.text = TEXT_BEST_SCORE + ": " + data.mejorScore;
+            
+    //         // Agregar el texto de mejor puntaje al grupo
+    //         oGroup.addChild(oBestScoreText);
+    //     })
+    //     .catch(error => {
+    //         console.error('Error al guardar el puntaje:', error);
+    //         alert('Error al guardar el puntaje. Por favor, intenta nuevamente.');
+    //     });
     // };
+    
     this.gameOver = function () {
         _iGameState = STATE_FINISH;
-        _oInterface.createWinPanel(Math.floor(_iScore));
+    
+        // Crear un grupo para la ventana de finalización
+        var oGroup = new createjs.Container();
+        oGroup.alpha = 0;
+        s_oStage.addChild(oGroup);
+    
+        var oFade = new createjs.Shape();
+        oFade.graphics.beginFill("black").drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        oFade.alpha = 0.5;
+        oGroup.addChild(oFade);
+    
+        var oBg = createBitmap(s_oSpriteLibrary.getSprite("msg_box"));
+        oBg.x = CANVAS_WIDTH_HALF;
+        oBg.y = CANVAS_HEIGHT_HALF;
+        oBg.regX = oBg.image.width * 0.5;
+        oBg.regY = oBg.image.height * 0.5;
+        oGroup.addChild(oBg);
+    
+        var oTitleText = new createjs.Text(TEXT_GAMEOVER, "80px " + FONT_GAME, TEXT_COLOR);
+        oTitleText.x = CANVAS_WIDTH_HALF;
+        oTitleText.y = CANVAS_HEIGHT_HALF - 180;
+        oTitleText.textAlign = "center";
+        oGroup.addChild(oTitleText);
+    
+        var oNewScoreText = new createjs.Text(TEXT_SCORE + ": " + Math.floor(_iScore), "50px " + FONT_GAME, TEXT_COLOR);
+        oNewScoreText.x = CANVAS_WIDTH_HALF;
+        oNewScoreText.y = CANVAS_HEIGHT_HALF - 70;
+        oNewScoreText.textAlign = "center";
+        oGroup.addChild(oNewScoreText);
+    
+        var oBestScoreText = new createjs.Text(TEXT_BEST_SCORE + ": " + s_iBestScore, "50px " + FONT_GAME, TEXT_COLOR);
+        oBestScoreText.x = CANVAS_WIDTH_HALF;
+        oBestScoreText.y = CANVAS_HEIGHT_HALF - 10;
+        oBestScoreText.textAlign = "center";
+    
+        var oButScoresBg = new createjs.Shape();
+        oButScoresBg.graphics.beginFill("#0000FF").drawRoundRect(0, 0, 300, 60, 10);
+        oButScoresBg.x = CANVAS_WIDTH * 0.5 - 150;
+        oButScoresBg.y = CANVAS_HEIGHT * 0.5 + 60;
+        oGroup.addChild(oButScoresBg);
+    
+        var oButScoresText = new createjs.Text("Show Best Scores", "40px " + FONT_GAME, "#FFF");
+        oButScoresText.x = CANVAS_WIDTH * 0.5;
+        oButScoresText.y = CANVAS_HEIGHT * 0.5 + 70;
+        oButScoresText.textAlign = "center";
+        oGroup.addChild(oButScoresText);
+    
+        oButScoresBg.addEventListener("click", function () {
+            showBestScores();
+        });
+    
+        var oSpriteButRestart = s_oSpriteLibrary.getSprite("but_restart");
+        var oButRestart = new CGfxButton(CANVAS_WIDTH * 0.5, oButScoresBg.y + 100, oSpriteButRestart, oGroup);
+        oButRestart.pulseAnimation();
+        oButRestart.addEventListener(ON_MOUSE_DOWN, function () {
+            oGroup.removeAllChildren();
+            s_oStage.removeChild(oGroup);
+            s_oGame.restartGame();
+        });
+    
+        createjs.Tween.get(oGroup).wait(MS_WAIT_SHOW_GAME_OVER_PANEL).to({alpha: 1}, 1250, createjs.Ease.cubicOut);
+    
         $(s_oMain).trigger("end_level", _iLevel);
-        
-        // Disparar el evento "save_score" para indicar el final del juego y guardar el puntaje
+    
         const token = localStorage.getItem('token');
         const totalScore = _iScore;
     
@@ -933,22 +1121,98 @@ this.addImpulseToBall = function(oDir) {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                token: token, // Asegúrate de que el token esté disponible en el almacenamiento local
+                token: token,
                 totalScore: totalScore
             })
         })
         .then(response => response.json())
         .then(data => {
             console.log('Puntaje guardado exitosamente:', data);
-            
+            oNewScoreText.text = TEXT_SCORE + ": " + data.totalScore;
+            oBestScoreText.text = TEXT_BEST_SCORE + ": " + data.mejorScore;
+            oGroup.addChild(oBestScoreText);
         })
         .catch(error => {
             console.error('Error al guardar el puntaje:', error);
-            // Aquí puedes manejar cualquier error ocurrido durante la solicitud
             alert('Error al guardar el puntaje. Por favor, intenta nuevamente.');
         });
     };
     
+    // Función para mostrar los mejores puntajes
+    function showBestScores() {
+        var oBestScoresGroup = new createjs.Container();
+        s_oStage.addChild(oBestScoresGroup);
+    
+        var oBg = new createjs.Shape();
+        oBg.graphics.beginFill("black").drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        oBg.alpha = 0.5;
+        oBestScoresGroup.addChild(oBg);
+    
+        var oTableBg = new createjs.Shape();
+        oTableBg.graphics.beginFill("#FFFFFF").drawRoundRect(0, 0, 600, 500, 10);
+        oTableBg.x = CANVAS_WIDTH_HALF - 300;
+        oTableBg.y = 80;
+        oBestScoresGroup.addChild(oTableBg);
+    
+        var oTableBorder = new createjs.Shape();
+        oTableBorder.graphics.setStrokeStyle(2).beginStroke("#000").drawRoundRect(0, 0, 600, 500, 10);
+        oTableBorder.x = CANVAS_WIDTH_HALF - 300;
+        oTableBorder.y = 80;
+        oBestScoresGroup.addChild(oTableBorder);
+    
+        var oTitleText = new createjs.Text("Top 10 Scores", "50px " + FONT_GAME, "#000");
+        oTitleText.x = CANVAS_WIDTH_HALF;
+        oTitleText.y = 100;
+        oTitleText.textAlign = "center";
+        oBestScoresGroup.addChild(oTitleText);
+    
+        var oScoresList = new createjs.Container();
+        oScoresList.x = CANVAS_WIDTH_HALF - 250;
+        oScoresList.y = 150;
+        oBestScoresGroup.addChild(oScoresList);
+    
+        fetch('http://localhost:3001/get-best-scores')
+            .then(response => response.json())
+            .then(scores => {
+                var yPos = 0;
+                scores.forEach((score, index) => {
+                    var text = new createjs.Text(`${index + 1}. ${score.nombre}: ${score.totalScore}`, "30px " + FONT_GAME, "#000");
+                    text.y = yPos;
+                    text.textAlign = "left";
+                    oScoresList.addChild(text);
+                    yPos += 40;
+                });
+            })
+            .catch(error => {
+                console.error('Error al obtener los mejores puntajes:', error);
+            });
+    
+        var oButCloseBg = new createjs.Shape();
+        oButCloseBg.graphics.beginFill("#FF0000").drawRoundRect(0, 0, 150, 50, 10);
+        oButCloseBg.x = CANVAS_WIDTH_HALF - 75;
+        oButCloseBg.y = CANVAS_HEIGHT - 100;
+        oBestScoresGroup.addChild(oButCloseBg);
+    
+        var oButCloseText = new createjs.Text("Close", "40px " + FONT_GAME, "#FFF");
+        oButCloseText.x = CANVAS_WIDTH_HALF;
+        oButCloseText.y = CANVAS_HEIGHT - 90;
+        oButCloseText.textAlign = "center";
+        oBestScoresGroup.addChild(oButCloseText);
+    
+        oButCloseBg.addEventListener("click", function () {
+            oBestScoresGroup.removeAllChildren();
+            s_oStage.removeChild(oBestScoresGroup);
+        });
+    
+        createjs.Tween.get(oBestScoresGroup).to({alpha: 1}, 500, createjs.Ease.cubicOut);
+    }
+    
+    
+    
+
+
+
+
 
     s_oGame = this;
 
@@ -956,7 +1220,7 @@ this.addImpulseToBall = function(oDir) {
     NUM_OF_PENALTY = oData.num_of_penalty;
     MULTIPLIER_STEP = oData.multiplier_step;
     NUM_LEVEL_FOR_ADS = oData.num_levels_for_ads;
-    
+
 
     this._init();
 }
