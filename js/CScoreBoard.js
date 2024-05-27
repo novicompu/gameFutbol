@@ -72,6 +72,7 @@ function CScoreBoard(oParentContainer) {
     };
 
     this.refreshTextScore = function (iScore) {
+        console.log("refreshTextScore", iScore);
         _oRollingScore.rolling(_oPointText, _oPointTextStroke, iScore);
     };
 

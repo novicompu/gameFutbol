@@ -265,6 +265,23 @@ function CMain(oData) {
         _iState = STATE_MENU;
     };
 
+    this.gotoLogin = function () {
+        // Obtener el formulario de usuario y el contenedor del juego
+        var userInfoForm = document.querySelector('#user-info-form');
+        var gameContainer = document.querySelector('#game-container');
+    
+        // Verificar si los elementos existen antes de manipularlos
+        if (userInfoForm && gameContainer) {
+            // Mostrar el formulario de usuario y ocultar el contenedor del juego
+            userInfoForm.style.display = 'block';
+            gameContainer.style.display = 'none';
+        } else {
+            console.error('Elementos no encontrados: user-info-form o game-container');
+        }
+    
+        _iState = STATE_MENU;
+    };
+    
     this.gotoGame = function () {
         _oGame = new CGame(_oData);
 
