@@ -31,6 +31,8 @@ app.use(cors({
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.use('/', express.static('../public'));
+
 app.post('/submit-login', async (req, res) => {
   const { cedula, nombre } = req.body;
   const totalScore = 0;
@@ -98,7 +100,7 @@ app.post('/calculate-score', async (req, res) => {
   }
 
   try {
-    const secretPassphrase = "mySecretPassphrase";
+    const secretPassphrase = process.env.SECRET_PASSPHRASE;
     const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
     const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 

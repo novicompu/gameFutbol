@@ -83,9 +83,9 @@
 
         function submitForm(event) {
             event.preventDefault();
-            // if (!validarCedula() || !validarNombre()) {
-            //     return;
-            // }
+            if (!validarCedula() || !validarNombre()) {
+                return;
+            }
 
             var formData = {
                 cedula: document.getElementById('cedula').value.trim(),
@@ -200,7 +200,7 @@
         function initializeGame() {
             if (!verJuego) return;
             // Aquí inicia el código del juego
-            var countdownTime = 10000;
+            var countdownTime = 180000;
             var endTime;
             var timerInterval;
 

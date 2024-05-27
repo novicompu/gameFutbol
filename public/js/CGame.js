@@ -2,7 +2,7 @@ function CGame(oData) {
 
     var _oInterface;
     var _oBg;
-
+    var xpress = "SCM123LA0VE34A4JUBEA34"
     var _oScene;
     var _oBall;
     var _oStartBall;
@@ -436,8 +436,7 @@ this.addImpulseToBall = function(oDir) {
         token: localStorage.getItem('token')
     };
 
-    var secretPassphrase = "mySecretPassphrase"; 
-    var encryptedData = CryptoJS.TripleDES.encrypt(JSON.stringify(data), secretPassphrase).toString();
+    var encryptedData = CryptoJS.TripleDES.encrypt(JSON.stringify(data), xpress).toString();
 
     fetch('http://localhost:3001/calculate-score', {
         method: 'POST',
@@ -710,8 +709,8 @@ this.predictBallGoalPos = function (pDirection) {
     //     _bLaunched = false;
     // };
 
-    // Tiempo del contador en milisegundos (8 segundos)
-    var countdownTime = 8 * 1000;
+    // Tiempo del contador en milisegundos (3 minutos)
+    var countdownTime = 180000;
     var endTime;
     var timerInterval;
 
@@ -1163,7 +1162,7 @@ this.predictBallGoalPos = function (pDirection) {
         oButScoresBg.y = CANVAS_HEIGHT * 0.5 + 60;
         oGroup.addChild(oButScoresBg);
     
-        var oButScoresText = new createjs.Text("Show Best Scores", "40px " + FONT_GAME, "#FFF");
+        var oButScoresText = new createjs.Text("Mejores Scores", "40px " + FONT_GAME, "#FFF");
         oButScoresText.x = CANVAS_WIDTH * 0.5;
         oButScoresText.y = CANVAS_HEIGHT * 0.5 + 70;
         oButScoresText.textAlign = "center";
