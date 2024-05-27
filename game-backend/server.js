@@ -100,7 +100,7 @@ app.post('/calculate-score', async (req, res) => {
   }
 
   try {
-    const secretPassphrase = "mySecretPassphrase";
+    const secretPassphrase = process.env.SECRET_PASSPHRASE;
     const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
     const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 
