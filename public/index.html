@@ -40,6 +40,24 @@
             localStorage.removeItem('userData');
         });
 
+        // validar longitud de cédula y nombre 
+        
+
+        function onlyNumberKey(evt) {
+ 
+            // Only ASCII character in that range allowed
+            let ASCIICode = (evt.which) ? evt.which : evt.keyCode
+            if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
+                return false;
+            return true;
+        }
+
+        document.getElementById('nombre').addEventListener('input', function() {
+            if (this.value.length > 50) {
+                this.value = this.value.slice(0, 50);
+            }
+        });
+
         function validarCedula() {
             var cad = document.getElementById("cedula").value.trim();
             var total = 0;
@@ -60,7 +78,7 @@
                 total = total % 10 ? 10 - total % 10 : 0;
 
                 if (cad.charAt(longitud - 1) == total) {
-                    document.getElementById("salida").innerHTML = ("Cédula Válida");
+                    
                     return true;
                 } else {
                     document.getElementById("salida").innerHTML = ("Cédula Inválida");
@@ -80,7 +98,6 @@
             }
             return true;
         }
-        // cambios nuevos
 
         function submitForm(event) {
             event.preventDefault();
@@ -110,6 +127,10 @@
 
                 if (data.error) {
                     console.error('Error en la respuesta del servidor:', data.error);
+                    // mostrar mensaje de error en el formulario
+                    document.getElementById('salida').innerText = data.error;
+                    return;
+
                 } else {
                     console.log('Datos enviados:', data);
                     // guardar datos en localStorage
@@ -126,6 +147,8 @@
                 console.error('Error al enviar los datos:', error);
             });
         }
+
+
 
         function loadScript(src, callback) {
             let script = document.createElement('script');
@@ -247,7 +270,7 @@
                         {id: 6, probability: 60}, {id: 7, probability: 50}, {id: 8, probability: 60},
                         {id: 9, probability: 75}, {id: 10, probability: 80}, {id: 11, probability: 65},
                         {id: 12, probability: 70}, {id: 13, probability: 65}, {id: 14, probability: 80}],
-                    num_of_penalty: 15,
+                    num_of_penalty: 1000,
                     multiplier_step: 0.1,
                     audio_enable_on_startup: false,
                     fullscreen: true,
@@ -287,11 +310,15 @@
         <form id="user-form" action="#">
             <div class="form-group">
                 <label for="cedula" class="h5">Cédula:</label>
-                <input type="text" id="cedula" name="cedula" required class="form-control">
+                <input type="text" id="cedula" name="cedula" required class="form-control"
+                    onkeypress="return onlyNumberKey(event)" maxlength="10"
+                >
             </div>
             <div class="form-group">
                 <label for="nombre" class="h5">Usuario:</label>
-                <input type="text" id="nombre" name="nombre" required class="form-control">
+                <input type="text" id="nombre" name="nombre" required class="form-control"
+                    maxlength="50"
+                >
             </div>
             <p id="salida" class="text-center text-danger"></p>
             <div class="d-flex justify-content-center w-100">
@@ -304,7 +331,9 @@
     
     <div id="game-container" style="display:none;">
         <div style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%"></div>
-        <div id="timer" style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); font-size: 104px; color: white; z-index: 1000;"></div>
+        <div id="timer" style="position: fixed; top: 10px; left: 7%; font-size: 24px; color: white; background-color: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 10px; z-index: 1000;">
+        </div>
+        
         <div class="check-fonts">
             <p class="check-font-1">test 1</p>
         </div>
