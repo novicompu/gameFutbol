@@ -33,6 +33,10 @@ app.use(bodyParser.json());
 
 app.use('/', express.static('../public'));
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 app.post('/submit-login', async (req, res) => {
   const { cedula, nombre } = req.body;
   const totalScore = 0;
