@@ -11,6 +11,8 @@ const User = require('./models/Score');
 const CryptoJS = require('crypto-js');
 
 
+
+
 // Configuración de RedisSessions
 const rs = new RedisSessions({
   host: process.env.REDIS_HOST,
@@ -91,81 +93,66 @@ app.listen(port, async () => {
 app.post('/calculate-score', async (req, res) => {
   const { dataGame } = req.body;
 
-  console.log('Datos del juego:', dataGame);
   if (!dataGame) {
-    console.error('Token faltante');
     return res.status(400).json({ error: 'Token es requerido' });
   }
 
   try {
-    // Desencriptar los datos
     const secretPassphrase = "mySecretPassphrase";
     const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
     const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 
     const { puntos, makeGoal, area, token } = decryptedData;
-
     console.log('Datos desencriptados:', decryptedData);
 
     if (!token) {
-      console.error('Token faltante');
       return res.status(400).json({ error: 'Token es requerido' });
     }
 
     if (puntos === undefined || makeGoal === undefined || area === undefined) {
-      console.error('Datos faltantes');
       return res.status(400).json({ error: 'Todos los datos son requeridos' });
     }
 
-    // Recuperar session token
     const sessionData = await rs.get({
       app: rsApp,
       token: token
     });
 
     if (!sessionData) {
-      console.error('Token no válido');
       return res.status(400).json({ error: 'Token no válido' });
     }
 
-    console.log('Datos de la sesión:', sessionData);
-
-    // Obtener el contador de tiros actual, si no existe inicializar en 0
-    const currentThrow = sessionData.d.throwCount || 0;
-    const nextThrow = currentThrow + 1;
-
-    // Calcular puntos
+    const areasValidas = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
     let calculatedPoints = 0;
-    if (makeGoal) {
-      const scoreFactor = 2;
-      const goalFactor = 3;
-      const areaFactor = Math.floor(area / 2);
-      calculatedPoints =  (scoreFactor * goalFactor * areaFactor) + puntos;
+
+    if (areasValidas.includes(area)) {
+      if (makeGoal) {
+        const scoreFactor = 2;
+        const goalFactor = 3;
+        const areaFactor = Math.floor(area / 2);
+        calculatedPoints = (scoreFactor * goalFactor * areaFactor) + puntos;
+      }
     }
 
     const totalScore = sessionData.d.totalScore || 0;
     const newTotalScore = totalScore + calculatedPoints;
 
-    console.log(`total score nuevo: ${newTotalScore}`);
-
-    // Guardar el totalScore y el contador de tiros en Redis
     await rs.set({
       app: rsApp,
       token: token,
       d: {
         ...sessionData.d,
         totalScore: newTotalScore,
-        throwCount: nextThrow
+        throwCount: sessionData.d.throwCount + 1
       }
     });
 
-    console.log('Total de puntos:', newTotalScore);
     res.json({ message: 'Tiro almacenado en Redis', totalScore: newTotalScore });
   } catch (err) {
-    console.error('Error al almacenar en Redis:', err);
     res.status(500).json({ error: 'Error al almacenar los datos' });
   }
 });
+
 
 
 
@@ -304,50 +291,5 @@ app.get('/get-best-scores', async (req, res) => {
 });
 
 
-
-app.post('/restart-game', async (req, res) => {
-  const { token } = req.body;
-  
-
-  if (!token) {
-    console.error('Token faltante');
-    return res.status(400).json({ error: 'Token es requerido' });
-  }
-
-  try {
-    // Recuperar los datos de la sesión actual
-    const sessionData = await rs.get({
-      app: rsApp,
-      token: token
-    });
-
-    if (!sessionData) {
-      console.error('Token no válido');
-      return res.status(400).json({ error: 'Token no válido' });
-    }
-
-    const { cedula, nombre } = sessionData.d;
-
-    // Eliminar la sesión actual
-    await rs.kill({
-      app: rsApp,
-      token: token
-    });
-
-    // Crear una nueva sesión
-    const newSession = await rs.create({
-      app: rsApp,
-      id: cedula,
-      ip: req.ip,
-      ttl: 3600,
-      d: { nombre, cedula, totalScore: 0 }  // Iniciar con totalScore en 0
-    });
-
-    res.json({ message: 'Sesión reiniciada', token: newSession.token });
-  } catch (err) {
-    console.error('Error al reiniciar la sesión:', err);
-    res.status(500).json({ error: 'Error al reiniciar la sesión' });
-  }
-});
 
 

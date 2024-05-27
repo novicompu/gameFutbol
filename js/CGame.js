@@ -420,46 +420,66 @@ this.addImpulseToBall = function(oDir) {
     this.chooseDirectionGoalKeeper(oDir);
     playSound("kick", 1, false);
 
-    // Datos del tiro
-    var tiro = _iLaunch + 1;
-    var makeGoal = _bMakeGoal;
-    var area = _iArea;
+    // Verificar si el tiro está dentro del área del arco
+    var pBallFinalPos = this.predictBallGoalPos(oDir);
+    var areaValida = this.isAreaValida(pBallFinalPos);
+    var makeGoal = areaValida ? _bMakeGoal : false;
+    var area = areaValida ? _iArea : -1;
 
-    // Datos a encriptar
+    var tiro = _iLaunch + 1;
+
     var data = {
         tiro: tiro,
-        puntos: 0, // Enviar puntos como 0 porque solo usaremos el valor del API
+        puntos: 0,
         makeGoal: makeGoal,
         area: area,
         token: localStorage.getItem('token')
     };
 
-    // Encriptar los datos
-    var secretPassphrase = "mySecretPassphrase"; // O usar una variable de entorno si es posible
+    var secretPassphrase = "mySecretPassphrase"; 
     var encryptedData = CryptoJS.TripleDES.encrypt(JSON.stringify(data), secretPassphrase).toString();
 
-    // Enviar datos al backend
     fetch('http://localhost:3001/calculate-score', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            dataGame: encryptedData  // Asegúrate de que el campo sea 'dataGame'
+            dataGame: encryptedData
         })
     })
     .then(response => response.json())
     .then(data => {
         console.log('Datos enviados:', data);
-        // Actualizar la variable de puntaje con el valor del API
-        _iScore = data.totalScore;
-        // Actualizar el puntaje en la interfaz solo con el valor del API
-        _oInterface.refreshTextScoreBoard(data.totalScore, 1, data.totalScore, false);
+        _iScore = data.totalScore !== undefined ? data.totalScore : _iScore;
+        _oInterface.refreshTextScoreBoard(_iScore, 1, _iScore, false);
     })
     .catch(error => {
         console.error('Error al enviar los datos:', error);
     });
 };
+
+// Función para verificar si la posición está dentro del área del arco
+this.isAreaValida = function(pBallFinalPos) {
+    var iStartX = -_pGoalSize.w / 2;
+    var iStartY = -_pGoalSize.h / 2;
+    var iEndX = _pGoalSize.w / 2;
+    var iEndY = _pGoalSize.h / 2;
+
+    return (pBallFinalPos.x >= iStartX && pBallFinalPos.x <= iEndX && pBallFinalPos.y >= iStartY && pBallFinalPos.y <= iEndY);
+};
+
+this.predictBallGoalPos = function (pDirection) {
+    var iNormalizedX = pDirection.x / pDirection.y;
+    var iNormalizedY = pDirection.z / pDirection.y;
+
+    var iFinalX = linearFunction(iNormalizedX, STRIKER_GOAL_SHOOTAREA.lx, STRIKER_GOAL_SHOOTAREA.rx, -_pGoalSize.w / 2, _pGoalSize.w / 2);
+    var iFinalY = (-_pGoalSize.h / Math.pow(STRIKER_GOAL_SHOOTAREA.zmax, 2)) * iNormalizedY * iNormalizedY + _pGoalSize.h / 2;
+
+    return { x: iFinalX, y: iFinalY };
+};
+
+
 
 
 
@@ -689,30 +709,84 @@ this.addImpulseToBall = function(oDir) {
     //     _iGameState = STATE_PLAY;
     //     _bLaunched = false;
     // };
+
+    // Tiempo del contador en milisegundos (8 segundos)
+    var countdownTime = 8 * 1000;
+    var endTime;
+    var timerInterval;
+
+    this.startTimer = function() {
+        endTime = Date.now() + countdownTime;
+        document.getElementById('timer').style.display = 'block';
+        timerInterval = setInterval(this.updateTimer.bind(this), 1000);
+    };
+
+    this.resetTimer = function() {
+        clearInterval(timerInterval);
+        document.getElementById('timer').innerText = "03:00";
+        document.getElementById('timer').style.display = 'none';
+    };
+
+    this.updateTimer = function() {
+        var remainingTime = endTime - Date.now();
+        if (remainingTime <= 0) {
+            clearInterval(timerInterval);
+            document.getElementById('timer').innerText = "00:00";
+            this.gameOver();
+            // ocultar el timer
+            document.getElementById('timer').style.display = 'none';
+            return;
+        }
+        var minutes = Math.floor(remainingTime / 60000);
+        var seconds = Math.floor((remainingTime % 60000) / 1000);
+        document.getElementById('timer').innerText = 
+            (minutes < 10 ? "0" : "") + minutes + ":" + 
+            (seconds < 10 ? "0" : "") + seconds;
+    };
     this.restartGame = function () {
-        const token = localStorage.getItem('token');
+        // Recupera las variables del localStorage
+        const cedula = localStorage.getItem('cedula');
+        const nombre = localStorage.getItem('nombre');
     
-        fetch('http://localhost:3001/restart-game', {
+        if (!cedula || !nombre) {
+            console.error('Cédula o nombre faltantes');
+            return;
+        }
+    
+        const formData = { cedula, nombre };
+    
+        fetch('http://localhost:3001/submit-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ token: token })
+            body: JSON.stringify(formData)
         })
         .then(response => response.json())
         .then(data => {
-            console.log('Sesión reiniciada:', data);
-            localStorage.setItem('token', data.token); // Guardar el nuevo token en el almacenamiento local
+            console.log('Respuesta del servidor:', data);
     
-            this.resetValues();
-            this.resetScene();
-            _iGameState = STATE_PLAY;
-            _bLaunched = false;
+            if (data.error) {
+                console.error('Error en la respuesta del servidor:', data.error);
+            } else {
+                console.log('Datos enviados:', data);
+                // Guardar el nuevo token en el localStorage
+                localStorage.setItem('token', data.token);
+        
+                this.resetValues();
+                this.resetScene();
+                this.resetTimer();
+                this.startTimer();
+    
+                _iGameState = STATE_PLAY;
+                _bLaunched = false;
+            }
         })
         .catch(error => {
-            console.error('Error al reiniciar la sesión:', error);
+            console.error('Error al enviar los datos:', error);
         });
     };
+    
     
 
     this.endTurn = function () {
@@ -1137,6 +1211,76 @@ this.addImpulseToBall = function(oDir) {
             alert('Error al guardar el puntaje. Por favor, intenta nuevamente.');
         });
     };
+    
+    // Función para mostrar los mejores puntajes
+    function showBestScores() {
+        var oBestScoresGroup = new createjs.Container();
+        s_oStage.addChild(oBestScoresGroup);
+    
+        var oBg = new createjs.Shape();
+        oBg.graphics.beginFill("black").drawRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        oBg.alpha = 0.5;
+        oBestScoresGroup.addChild(oBg);
+    
+        var oTableBg = new createjs.Shape();
+        oTableBg.graphics.beginFill("#FFFFFF").drawRoundRect(0, 0, 600, 500, 10);
+        oTableBg.x = CANVAS_WIDTH_HALF - 300;
+        oTableBg.y = 80;
+        oBestScoresGroup.addChild(oTableBg);
+    
+        var oTableBorder = new createjs.Shape();
+        oTableBorder.graphics.setStrokeStyle(2).beginStroke("#000").drawRoundRect(0, 0, 600, 500, 10);
+        oTableBorder.x = CANVAS_WIDTH_HALF - 300;
+        oTableBorder.y = 80;
+        oBestScoresGroup.addChild(oTableBorder);
+    
+        var oTitleText = new createjs.Text("Top 10 Scores", "50px " + FONT_GAME, "#000");
+        oTitleText.x = CANVAS_WIDTH_HALF;
+        oTitleText.y = 100;
+        oTitleText.textAlign = "center";
+        oBestScoresGroup.addChild(oTitleText);
+    
+        var oScoresList = new createjs.Container();
+        oScoresList.x = CANVAS_WIDTH_HALF - 250;
+        oScoresList.y = 150;
+        oBestScoresGroup.addChild(oScoresList);
+    
+        fetch('http://localhost:3001/get-best-scores')
+            .then(response => response.json())
+            .then(scores => {
+                var yPos = 0;
+                scores.forEach((score, index) => {
+                    var text = new createjs.Text(`${index + 1}. ${score.nombre}: ${score.totalScore}`, "30px " + FONT_GAME, "#000");
+                    text.y = yPos;
+                    text.textAlign = "left";
+                    oScoresList.addChild(text);
+                    yPos += 40;
+                });
+            })
+            .catch(error => {
+                console.error('Error al obtener los mejores puntajes:', error);
+            });
+    
+        var oButCloseBg = new createjs.Shape();
+        oButCloseBg.graphics.beginFill("#FF0000").drawRoundRect(0, 0, 150, 50, 10);
+        oButCloseBg.x = CANVAS_WIDTH_HALF - 75;
+        oButCloseBg.y = CANVAS_HEIGHT - 100;
+        oBestScoresGroup.addChild(oButCloseBg);
+    
+        var oButCloseText = new createjs.Text("Close", "40px " + FONT_GAME, "#FFF");
+        oButCloseText.x = CANVAS_WIDTH_HALF;
+        oButCloseText.y = CANVAS_HEIGHT - 90;
+        oButCloseText.textAlign = "center";
+        oBestScoresGroup.addChild(oButCloseText);
+    
+        oButCloseBg.addEventListener("click", function () {
+            oBestScoresGroup.removeAllChildren();
+            s_oStage.removeChild(oBestScoresGroup);
+        });
+    
+        createjs.Tween.get(oBestScoresGroup).to({alpha: 1}, 500, createjs.Ease.cubicOut);
+    }
+    
     
     // Función para mostrar los mejores puntajes
     function showBestScores() {
