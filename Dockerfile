@@ -12,7 +12,7 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 WORKDIR /usr/src/app
 
 # Copiar los archivos de la aplicación
-COPY . .
+COPY ./game-backend .
 
 # Instalar las dependencias de Node.js
 RUN npm install --production
