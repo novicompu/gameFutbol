@@ -33,10 +33,6 @@ app.use(bodyParser.json());
 
 app.use('/', express.static('../public'));
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
-});
-
 app.post('/submit-login', async (req, res) => {
   const { cedula, nombre } = req.body;
   const totalScore = 0;
@@ -47,34 +43,50 @@ app.post('/submit-login', async (req, res) => {
   }
 
   try {
-    // Crear una nueva sesión en Redis
-    const session = await rs.create({
-      app: rsApp,
-      id: cedula,
-      ip: req.ip,
-      ttl: 3600,
-      d: { nombre, cedula, totalScore }
-    });
-    // Verificar si la cédula ya existe en la base de datos
+    // Verificar si la cédula existe en la base de datos
     const usuarioExistente = await User.findOne({ where: { cedula } });
 
     if (usuarioExistente) {
-      console.log(`La cédula ${cedula} ya existe.`);
-      // Return 200 (OK) instead of 400 (Bad Request) y devolver el token de la sesión
-      return res.status(200).json({ message: 'Usuario ya registrado', token: session.token });
+      // Verificar si la cédula y el nombre coinciden en la base de datos
+      if (usuarioExistente.nombre === nombre) {
+        console.log(`La cédula ${cedula} y el nombre ${nombre} coinciden.`);
+
+        // Crear una nueva sesión en Redis
+        const session = await rs.create({
+          app: rsApp,
+          id: cedula,
+          ip: req.ip,
+          ttl: 3600,
+          d: { nombre, cedula, totalScore: usuarioExistente.totalScore }
+        });
+
+        // Return 200 (OK) y devolver el token de la sesión
+        return res.status(200).json({ message: 'Usuario autenticado', token: session.token });
+      } else {
+        console.log(`La cédula ${cedula} y el nombre ${nombre} no coinciden.`);
+        return res.status(400).json({ error: 'Cédula y nombre no coinciden' });
+      }
+    } else {
+      // Crear un nuevo usuario
+      const nuevoUsuario = await User.create({ cedula, nombre, totalScore });
+
+      if (!nuevoUsuario) {
+        console.error('Error al crear el usuario');
+        return res.status(500).json({ error: 'Error al crear el usuario' });
+      }
+
+      // Crear una nueva sesión en Redis
+      const session = await rs.create({
+        app: rsApp,
+        id: cedula,
+        ip: req.ip,
+        ttl: 3600,
+        d: { nombre, cedula, totalScore }
+      });
+
+      // Return 200 (OK) y devolver el token de la sesión
+      return res.status(200).json({ message: 'Usuario creado y autenticado', token: session.token });
     }
-
-    
-
-    console.log('Sesión creada:', session.token);
-    console.log(`Datos recibidos: cédula=${cedula}, nombre=${nombre}`);
-
-    // Guardar los datos en la base de datos MySQL
-    const nuevoUsuario = await User.create({ cedula, nombre, totalScore });
-
-    // Devolver el token de la sesión
-    res.json({ message: 'Datos recibidos y guardados correctamente', token: session.token });
-
   } catch (err) {
     console.error('Error al procesar los datos:', err);
 
@@ -83,6 +95,8 @@ app.post('/submit-login', async (req, res) => {
     }
   }
 });
+
+
 
 
 app.listen(port, async () => {
