@@ -436,6 +436,7 @@ this.addImpulseToBall = function(oDir) {
         token: localStorage.getItem('token')
     };
 
+    
     var secretPassphrase = "mySecretPassphrase"; 
     var encryptedData = CryptoJS.TripleDES.encrypt(JSON.stringify(data), secretPassphrase).toString();
 

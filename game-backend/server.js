@@ -31,6 +31,8 @@ app.use(cors({
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+app.use('/', express.static('../public'));
+
 app.post('/submit-login', async (req, res) => {
   const { cedula, nombre } = req.body;
   const totalScore = 0;
