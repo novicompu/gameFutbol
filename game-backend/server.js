@@ -43,6 +43,29 @@ app.post('/submit-login', async (req, res) => {
   }
 
   try {
+    // Verificar si la cédula ya existe en la base de datos
+    const usuarioExistente = await User.findOne({ where: { cedula } });
+
+    if (usuarioExistente) {
+      // Validar las credenciales
+      if (usuarioExistente.nombre === nombre) {
+        // Crear una nueva sesión en Redis
+        const session = await rs.create({
+          app: rsApp,
+          id: cedula,
+          ip: req.ip,
+          ttl: 3600,
+          d: { nombre, cedula, totalScore: usuarioExistente.totalScore }
+        });
+
+        console.log('Sesión creada:', session.token);
+        return res.status(200).json({ message: 'Credenciales correctas', token: session.token });
+      } else {
+        console.error('Nombre incorrecto');
+        return res.status(400).json({ error: 'Credenciales incorrectas' });
+      }
+    }
+
     // Crear una nueva sesión en Redis
     const session = await rs.create({
       app: rsApp,
@@ -51,16 +74,6 @@ app.post('/submit-login', async (req, res) => {
       ttl: 3600,
       d: { nombre, cedula, totalScore }
     });
-    // Verificar si la cédula ya existe en la base de datos
-    const usuarioExistente = await User.findOne({ where: { cedula } });
-
-    if (usuarioExistente) {
-      console.log(`La cédula ${cedula} ya existe.`);
-      // Return 200 (OK) instead of 400 (Bad Request) y devolver el token de la sesión
-      return res.status(200).json({ message: 'Usuario ya registrado', token: session.token });
-    }
-
-    
 
     console.log('Sesión creada:', session.token);
     console.log(`Datos recibidos: cédula=${cedula}, nombre=${nombre}`);
@@ -69,7 +82,7 @@ app.post('/submit-login', async (req, res) => {
     const nuevoUsuario = await User.create({ cedula, nombre, totalScore });
 
     // Devolver el token de la sesión
-    res.json({ message: 'Datos recibidos y guardados correctamente', token: session.token });
+    res.json({ message: 'Usuario registrado correctamente', token: session.token });
 
   } catch (err) {
     console.error('Error al procesar los datos:', err);
@@ -79,6 +92,7 @@ app.post('/submit-login', async (req, res) => {
     }
   }
 });
+
 
 
 app.listen(port, async () => {

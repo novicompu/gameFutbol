@@ -104,7 +104,15 @@
                 },
                 body: JSON.stringify(formData)
             })
-            .then(response => response.json())
+            .then(response => {
+                // si error 400, mostrar mensaje de error
+                if (response.status === 400) {
+                    // mostrar mensaje de error en el formulario
+                    document.getElementById('salida').innerText = 'Datos incorrectos';
+                    return;
+                }
+                return response.json();
+            })
             .then(data => {
                 console.log('Respuesta del servidor:', data);
 
