@@ -5,7 +5,22 @@ services:
       dockerfile: Dockerfile        
     image: gamefutbol:latest
     ports:
-      - "3000:3000"
+      - "3000:3001"
+    environment:
+      DB_USER: root
+      DB_PASS: Zafiro30
+      DB_NAME: dataGame
+      DB_HOST: mysql
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ''
+      SECRET_PASSPHRASE: SCM123LA0VE34A4JUBEA34
+
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   mysql:
     image: mysql:8.0.36
@@ -19,6 +34,11 @@ services:
     volumes:
       - ./mysql-data:/var/lib/mysql
     shm_size: 512m
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
 
   redis:
     image: redis:latest
@@ -29,4 +49,8 @@ services:
       - ./data:/data
     command: ["redis-server", "--appendonly", "yes"]
     shm_size: 512m 
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      timeout: 20s
+      retries: 10
     
