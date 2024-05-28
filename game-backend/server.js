@@ -49,7 +49,7 @@ app.post('/submit-login', async (req, res) => {
     if (usuarioExistente) {
       // Verificar si la cédula y el nombre coinciden en la base de datos
       if (usuarioExistente.nombre === nombre) {
-        console.log(`La cédula ${cedula} y el nombre ${nombre} coinciden.`);
+        
 
         // Crear una nueva sesión en Redis
         const session = await rs.create({
@@ -63,7 +63,6 @@ app.post('/submit-login', async (req, res) => {
         // Return 200 (OK) y devolver el token de la sesión
         return res.status(200).json({ message: 'Usuario autenticado', token: session.token });
       } else {
-        console.log(`La cédula ${cedula} y el nombre ${nombre} no coinciden.`);
         return res.status(400).json({ error: 'Cédula y nombre no coinciden' });
       }
     } else {
@@ -173,68 +172,6 @@ app.post('/calculate-score', async (req, res) => {
   }
 });
 
-
-
-
-
-
-// app.post('/save-score', async (req, res) => {
-//   const { token, totalScore } = req.body;
-
-//   console.log('total score a guardar:', totalScore);
-
-//   if (!token) {
-//     console.error('Token faltante');
-//     return res.status(400).json({ error: 'Token es requerido' });
-//   }
-
-//   try {
-//     // Recuperar session token
-//     const sessionData = await rs.get({
-//       app: rsApp,
-//       token: token
-//     });
-
-//     if (!sessionData) {
-//       console.error('Token no válido');
-//       return res.status(400).json({ error: 'Token no válido' });
-//     }
-
-//     console.log('Datos de la sesión:', sessionData);
-
-//     // Guardar los datos en la base de datos MySQL
-//     const { cedula, nombre } = sessionData.d;
-    
-//     // Recuperar el usuario actual para verificar el totalScore
-//     const usuario = await User.findOne({ where: { cedula } });
-
-//     if (usuario) {
-//       if (totalScore > usuario.totalScore) {
-//         await User.update({ totalScore }, { where: { cedula } });
-//       } else {
-//         console.log(`Total score no actualizado, el nuevo score ${totalScore} no es mayor que el actual ${usuario.totalScore}`);
-//       }
-//     } else {
-//       console.error('Usuario no encontrado');
-//       return res.status(404).json({ error: 'Usuario no encontrado' });
-//     }
-
-//     // Eliminar la sesión de Redis
-//     await rs.kill({
-//       app: rsApp,
-//       token: token
-//     });
-
-//     res.json({ message: 'Datos guardados', totalScore });
-//   } catch (err) {
-//     console.error('Error al guardar en MySQL:', err);
-//     res.status(500).json({ error: 'Error al guardar los datos' });
-//   }
-// });
-
-
-
-// metodo para obtener los 10 mejores puntajes de la base de datos solo mostrara el nombre y el puntaje
 
 app.post('/save-score', async (req, res) => {
   const { token, totalScore } = req.body;
