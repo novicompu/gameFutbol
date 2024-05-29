@@ -45,16 +45,50 @@
     </style>
 
     <script>
+        
+        // cargar el dom
+        document.addEventListener('DOMContentLoaded', function() {
+            var hostAndPort = new URL(window.location.href).host;
+            let payjoy = 'payjoy.novicompu.com';
+            let epson = 'epson.novicompu.com';
+            let honor = 'honor.novicompu.com';
+            let pacifico = 'pacifico.novicompu.com';
+
+
+            // if (hostAndPort === 'localhost:3001') {
+            //     document.querySelector('.enlaceRegistro').style.display = 'none';
+            // }
+
+            var bgImage = document.querySelector('.bgImagenLogin');
+
+            if (hostAndPort === pacifico) {
+                bgImage.src = 'sprites/bg_gamePacifico.jpg';
+            } else if (hostAndPort ===  honor) {
+                bgImage.src = 'sprites/bg_gameHonor.jpg';
+            } else if (hostAndPort === epson) {
+                bgImage.src = 'sprites/bg_gameEpson.jpg';
+            } else if (hostAndPort === payjoy) {
+                bgImage.src = 'sprites/bg_game.jpg';
+            } else {
+                bgImage.src = 'sprites/bg_game.jpg';
+            }
+
+        });
+
+        
         function showRegistrationForm() {
             document.getElementById('user-info-form').style.display = 'none';
             document.getElementById('registration-form').style.display = 'block';
         }
+
         
     </script>
 
     <script>
         let verJuego = true;
 
+        let urlApi = 'http://localhost:3001';
+        //let urlApi = 'https://api-game.novicompu.com';
         window.addEventListener('beforeunload', function (e) {
             // Elimina los datos del localStorage
             localStorage.removeItem('cedula');
@@ -72,6 +106,16 @@
             if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
                 return false;
             return true;
+        }
+
+
+        function keynotEspaciosenBlanco(evt) {
+            var key = evt.keyCode;
+            if (key == 32) {
+                return false;
+            } else {
+                return true;
+            }
         }
 
         document.getElementById('nombre').addEventListener('input', function() {
@@ -120,8 +164,51 @@
             }
             return true;
         }
-        //let url = 'https://api-game.novicompu.com';
-        let url2 = 'http://localhost:3001';
+        
+        function validarCedulaRegistro() {
+            var cad = document.getElementById("reg-cedula").value.trim();
+            var total = 0;
+            var longitud = cad.length;
+            var longcheck = longitud - 1;
+
+            if (cad !== "" && longitud === 10) {
+                for (let i = 0; i < longcheck; i++) {
+                    if (i % 2 === 0) {
+                        var aux = cad.charAt(i) * 2;
+                        if (aux > 9) aux -= 9;
+                        total += aux;
+                    } else {
+                        total += parseInt(cad.charAt(i)); // parseInt suma en lugar de concatenar
+                    }
+                }
+
+                total = total % 10 ? 10 - total % 10 : 0;
+
+                if (cad.charAt(longitud - 1) == total) {
+                    return true;
+                } else {
+                    document.getElementById("reg-salida").innerHTML = ("Cédula Inválida");
+                    return false;
+                }
+            } else {
+                document.getElementById("reg-salida").innerHTML = ("Cédula Inválida");
+                return false;
+            }
+        }
+
+        function validarNombreRegistro() {
+            var nombre = document.getElementById("reg-nombre").value.trim();
+            if (nombre === '') {
+                alert('Por favor ingrese un nombre de usuario válido.');
+                return false;
+            }
+            return true;
+        }
+        
+        
+        
+        
+        
         function submitForm(event) {
 
 
@@ -133,9 +220,7 @@
 
             var cedula = document.getElementById('cedula').value.trim();
             var nombre = document.getElementById('nombre').value.trim();
-            var currentPath = window.location.href; // Captura la URL actual del navegador
-
-            console.log('currentPath:', currentPath);
+            var currentPath = new URL(window.location.href).host;
             var formData = {
                 cedula: cedula,
                 nombre: nombre,
@@ -145,8 +230,19 @@
             // almacenar datos en localStorage
             localStorage.setItem('cedula', formData.cedula);
             localStorage.setItem('nombre', formData.nombre);
+            let urlLog;
 
-            fetch('http://localhost:3001/submit-login', {
+            if (currentPath === 'localhost:3001') {
+                
+            //if (currentPath === (pacifico || honor || epson)) {
+                //urlLog = 'submit-loginMarcas';
+                urlLog = 'submit-login';
+            } else if (currentPath === payjoy) {
+                urlLog = 'submit-login';
+            }
+
+            fetch(`${urlApi}/${urlLog}`, {
+           
                 
                 method: 'POST',
                 headers: {
@@ -185,15 +281,16 @@
         function submitRegistrationForm(event) {
             console.log('submitRegistrationForm');
             event.preventDefault();
+            if (!validarCedulaRegistro() || !validarNombreRegistro()) {
+                return;
+            }
             
 
             var cedula = document.getElementById('reg-cedula').value.trim();
             var nombre = document.getElementById('reg-nombre').value.trim();
             var telefono = document.getElementById('telefono').value.trim();
             var codigoFactura = document.getElementById('codigoFactura').value.trim();
-            var currentPath = window.location.href; // Captura la URL actual del navegador
-
-            console.log('currentPath:', currentPath);
+            var currentPath = new URL(window.location.href).host;
             var formData = {
                 cedula: cedula,
                 nombre: nombre,
@@ -202,7 +299,8 @@
                 currentPath: currentPath
             };
 
-            fetch('http://localhost:3001/submit-registration', {
+
+            fetch(`${urlApi}/submit-registration`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -229,6 +327,7 @@
                 document.getElementById('reg-nombre').value = '';
                 document.getElementById('telefono').value = '';
                 document.getElementById('codigoFactura').value = '';
+                document.getElementById('reg-salida').innerText = '';
                 
             })
             .catch(error => {
@@ -312,7 +411,7 @@
         function initializeGame() {
             if (!verJuego) return;
             // Aquí inicia el código del juego
-            var countdownTime = 180000;
+            var countdownTime = 8000;
             var endTime;
             var timerInterval;
 
@@ -391,8 +490,9 @@
     </script>
 </head>
 <body ondragstart="return false;" ondrop="return false;">
-    <img src="sprites/bg_game.jpg"
+    <img src="sprites/bg_game.jpg" class="bgImagenLogin"
         alt="Logo" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;">
+    
     <div id="user-info-form">
         <h2 class="text-center text-primary mb-4">Ingresa tus datos</h2>
         <form id="user-form" action="#">
@@ -414,7 +514,7 @@
             </div>
             <br>
             <button id="show-scores-button" type="button" class="btn btn-primary btn-lg btn-block w-100">Ver mejores puntajes</button>
-            <p class="text-center mt-3">No te has registrado? <a href="#" onclick="showRegistrationForm()">Regístrate y participa</a></p>
+            <p class="text-center mt-3 enlaceRegistro">No te has registrado? <a href="#" onclick="showRegistrationForm()">Regístrate y participa</a></p>
       
         </form>
     </div>
@@ -434,11 +534,14 @@
             </div>
             <div class="form-group">
                 <label for="telefono" class="h5">Celular:</label>
-                <input type="text" id="telefono" name="telefono" required class="form-control" maxlength="10">
+                <input type="text" id="telefono" name="telefono" required class="form-control" 
+                    onkeypress="return onlyNumberKey(event)" maxlength="10">
             </div>
             <div class="form-group">
                 <label for="codigoFactura" class="h5">Código de Factura:</label>
-                <input type="text" id="codigoFactura" name="codigoFactura" required class="form-control" maxlength="20">
+                <input type="text" id="codigoFactura" name="codigoFactura" required class="form-control" 
+                    onkeypress="return keynotEspaciosenBlanco(event)"
+                maxlength="20">
             </div>
             <p id="reg-salida" class="text-center text-danger"></p>
             <div class="d-flex justify-content-center w-100">
@@ -490,30 +593,41 @@
     <script>
         //let url = 'https://api-game.novicompu.com';
         let url = 'http://localhost:3001';
+
+
         document.getElementById('show-scores-button').addEventListener('click', function() {
-            fetch(`${url}/get-best-scores`)
-                .then(response => response.json())
-                .then(data => {
-                    const scoresTable = document.getElementById('scores-table').getElementsByTagName('tbody')[0];
-                    scoresTable.innerHTML = ''; // Limpiar la tabla
+            const marca = new URL(window.location.href).host;
 
-                    data.forEach((score, index) => {
-                        const row = scoresTable.insertRow();
-                        const posicionCell = row.insertCell(0);
-                        const nombreCell = row.insertCell(1);
-                        const totalScoreCell = row.insertCell(2);
+            fetch(`${url}/get-best-scores`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ marca })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const scoresTable = document.getElementById('scores-table').getElementsByTagName('tbody')[0];
+                scoresTable.innerHTML = ''; // Limpiar la tabla
 
-                        posicionCell.textContent = index + 1; // Asignar la posición
-                        nombreCell.textContent = score.nombre;
-                        totalScoreCell.textContent = score.totalScore;
-                    });
+                data.forEach((score, index) => {
+                    const row = scoresTable.insertRow();
+                    const posicionCell = row.insertCell(0);
+                    const nombreCell = row.insertCell(1);
+                    const totalScoreCell = row.insertCell(2);
 
-                    document.getElementById('scores-table-container').style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error al obtener los puntajes:', error);
+                    posicionCell.textContent = index + 1; // Asignar la posición
+                    nombreCell.textContent = score.nombre;
+                    totalScoreCell.textContent = score.totalScore;
                 });
+
+                document.getElementById('scores-table-container').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error al obtener los puntajes:', error);
+            });
         });
+
 
         document.getElementById('close-scores-button').addEventListener('click', function() {
             document.getElementById('scores-table-container').style.display = 'none';

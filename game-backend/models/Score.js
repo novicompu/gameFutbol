@@ -10,7 +10,7 @@ const User = sequelize.define('User', {
   cedula: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true
+    
   },
   nombre: {
     type: DataTypes.STRING,
@@ -35,11 +35,11 @@ const User = sequelize.define('User', {
   },
   telefono: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
   codigoFactura: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
   },
 
 }, {
