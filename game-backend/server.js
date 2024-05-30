@@ -9,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 const User = require('./models/Score');
 const CryptoJS = require('crypto-js');
+const e = require('express');
 
 // Configuración de RedisSessions
 const rs = new RedisSessions({
@@ -179,25 +180,24 @@ app.post('/submit-registration', async (req, res) => {
   const { cedula, nombre, telefono, codigoFactura, currentPath } = req.body;
   
   console.log('si llega aca sissisisi:', cedula, nombre, telefono, codigoFactura, currentPath);
+  console.log('Datos currentPath:', currentPath);
+  console.log('Datos process.env.pacifico:', process.env.pacifico);
   let marca;
 
   // Determinar el valor de `marca` basado en `currentPath`
-  switch (currentPath) {
-      case process.env.epson:
-          marca = 'epson';
-          break;
-      case process.env.honor:
-          marca = 'honor';
-          break;
-      case process.env.pacifico:
-          marca = 'pacifico';
-          break;
-      default:
-          marca = '';
-          break;
+
+  if (currentPath === process.env.epson) {
+    marca = 'epson';
+  } else if (currentPath === process.env.honor) {
+    marca = 'honor';
+  } else if (currentPath === process.env.pacifico) {
+    marca = 'pacifico';
+  } else {
+    marca = '';
   }
 
-  console.log('Datos recibidos:', currentPath);
+
+  console.log('Datos de marca:', marca);
 
   if (!cedula || !nombre || !telefono || !codigoFactura) {
       console.error('Datos faltantes');
@@ -207,15 +207,14 @@ app.post('/submit-registration', async (req, res) => {
   try {
     let invoiceData = {};
     
-    // Validar la factura solo si la marca no es pacifico
-    if (marca !== 'pacifico') {
-        invoiceData = await validarFactura(codigoFactura);
+    
+    invoiceData = await validarFactura(codigoFactura, marca);
 
-        if (invoiceData.error) {
-            console.error('Factura no válida:', invoiceData.error);
-            return res.status(400).json({ error: 'Datos de factura inválido' });
-        }
+    if (invoiceData.error) {
+        console.error('Factura no válida:', invoiceData.error);
+        return res.status(400).json({ error: 'Datos de factura inválido' });
     }
+   
 
     // Verificar si la cédula ya existe en la base de datos
     const usuarioExistente = await User.findOne({ where: { cedula, marca } });
@@ -250,12 +249,12 @@ app.post('/submit-registration', async (req, res) => {
 
 
 // funcion para validar factura 
-async function validarFactura(codigoFactura) {
+async function validarFactura(codigoFactura, marca) {
   const token = 'NSPvNeHex1sJozJYtwstCLSphfxF2hQK';
   let facturaUrl = `FACEL-${codigoFactura}-NVC01`;
   const url = `http://45.77.166.183/api/invoices/bycode/${facturaUrl}?token=${token}`;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
       const response = await fetch(url, {
@@ -279,7 +278,27 @@ async function validarFactura(codigoFactura) {
       const invoiceData = await response.json();
 
       // Buscar productos cuyo código comience con "1CHON"
-      const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1GSM'));
+
+      if (marca === 'epson') {
+          const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1EEPS'));
+          if (hasValidProduct) {
+              return invoiceData;
+          } else {
+              return { error: 'Factura inválida: ningún producto con el código "1EEPS"' };
+          }
+      } else if (marca === 'honor') {
+          const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1CHON'));
+          if (hasValidProduct) {
+              return invoiceData;
+          } else {
+              return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
+          }
+      } else if (marca === 'pacifico') {
+        // solo verificamos que la factura exista
+        return invoiceData;
+      }
+
+      // const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1GSM'));
 
       if (hasValidProduct) {
           return invoiceData;

@@ -48,16 +48,18 @@
         
         // cargar el dom
         document.addEventListener('DOMContentLoaded', function() {
-            var hostAndPort = new URL(window.location.href).host;
+            
             let payjoy = 'payjoy.novicompu.com';
             let epson = 'epson.novicompu.com';
             let honor = 'honor.novicompu.com';
             let pacifico = 'pacifico.novicompu.com';
 
+            //var hostAndPort = pacifico; 
+            var hostAndPort = new URL(window.location.href).host;
 
-            // if (hostAndPort === 'localhost:3001') {
-            //     document.querySelector('.enlaceRegistro').style.display = 'none';
-            // }
+            if (hostAndPort === (epson || honor || pacifico)) {
+                document.querySelector('.enlaceRegistro').style.display = 'none';
+            }
 
             var bgImage = document.querySelector('.bgImagenLogin');
 
@@ -86,9 +88,10 @@
 
     <script>
         let verJuego = true;
+        
 
-        let urlApi = 'http://localhost:3001';
-        //let urlApi = 'https://api-game.novicompu.com';
+        //let urlApi = 'http://localhost:3001';
+        let urlApi = 'https://api-game.novicompu.com';
         window.addEventListener('beforeunload', function (e) {
             // Elimina los datos del localStorage
             localStorage.removeItem('cedula');
@@ -125,6 +128,7 @@
         });
 
         function validarCedula() {
+            console.log('Cargando epson..com', epson);
             var cad = document.getElementById("cedula").value.trim();
             var total = 0;
             var longitud = cad.length;
@@ -232,11 +236,11 @@
             localStorage.setItem('nombre', formData.nombre);
             let urlLog;
 
-            if (currentPath === 'localhost:3001') {
+            //if (currentPath === 'localhost:3001') {
                 
-            //if (currentPath === (pacifico || honor || epson)) {
-                //urlLog = 'submit-loginMarcas';
-                urlLog = 'submit-login';
+            if (currentPath === (pacifico || honor || epson)) {
+                urlLog = 'submit-loginMarcas';
+                //urlLog = 'submit-login';
             } else if (currentPath === payjoy) {
                 urlLog = 'submit-login';
             }
@@ -290,6 +294,7 @@
             var nombre = document.getElementById('reg-nombre').value.trim();
             var telefono = document.getElementById('telefono').value.trim();
             var codigoFactura = document.getElementById('codigoFactura').value.trim();
+            //var currentPath = 'pacifico.novicompu.com';
             var currentPath = new URL(window.location.href).host;
             var formData = {
                 cedula: cedula,

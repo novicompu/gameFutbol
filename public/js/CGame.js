@@ -41,8 +41,8 @@ function CGame(oData) {
 
     var _iGameState = STATE_INIT;
     var _oCamera = null;
-    //const _url = 'https://api-game.novicompu.com';
-    const _url = 'http://localhost:3001';
+    const _url = 'https://api-game.novicompu.com';
+    //const _url = 'http://localhost:3001';
 
     this._init = function () {
         $(s_oMain).trigger("start_session");
