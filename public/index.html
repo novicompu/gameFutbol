@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PENALTY KICKS</title>
+    <link rel="stylesheet" href="css/reset.css" type="text/css">
+    <link rel="stylesheet" href="css/main.css" type="text/css">
+    <link rel="stylesheet" href="css/orientation_utils.css" type="text/css">
+    <link rel="stylesheet" href="css/ios_fullscreen.css" type="text/css">
+    <link rel='shortcut icon' type='image/x-icon' href='./favicon.ico' />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0,minimal-ui" />
+    <meta name="msapplication-tap-highlight" content="no"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet">  
+    <style>
+        #user-info-form {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        #registration-form {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1000;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+    </style>
+
+    <script>
+        
+        // cargar el dom
+        document.addEventListener('DOMContentLoaded', function() {
+            
+            //let urlApi = 'http://localhost:3001';
+            let urlApi = 'https://api-game.novicompu.com';
+            let payjoy = 'canchapayjoy.novicompu.com';
+            let epson = 'epson.novicompu.com';
+            let honor = 'honor.novicompu.com';
+            let pacifico = 'pacifico.novicompu.com';
+            
+
+
+            //var hostAndPort = honor;
+            var hostAndPort = new URL(window.location.href).host;
+
+            if (hostAndPort === (payjoy)) {
+                document.querySelector('.enlaceRegistro').style.display = 'none';
+            }
+
+            var bgImage = document.querySelector('.bgImagenLogin');
+
+            
+            if (hostAndPort === pacifico) {
+                bgImage.src = 'sprites/bg_gamePacifico.jpg';
+            } else if (hostAndPort ===  honor) {
+                bgImage.src = 'sprites/bg_gameHonor.jpg';
+            } else if (hostAndPort === epson) {
+                bgImage.src = 'sprites/bg_gameEpson.jpg';
+            } else if (hostAndPort === payjoy) {
+                bgImage.src = 'sprites/bg_game.jpg';
+            } else {
+                bgImage.src = 'sprites/bg_game.jpg';
+            }
+
+        });
+
+        
+        function showRegistrationForm() {
+            document.getElementById('user-info-form').style.display = 'none';
+            document.getElementById('registration-form').style.display = 'block';
+        }
+
+        
+    </script>
+
+    <script>
+        let verJuego = true;
+        
+
+        window.addEventListener('beforeunload', function (e) {
+            // Elimina los datos del localStorage
+            localStorage.removeItem('cedula');
+            localStorage.removeItem('nombre');
+            localStorage.removeItem('token');
+            localStorage.removeItem('userData');
+        });
+
+        // validar longitud de cédula y nombre 
+        
+        function onlyNumberKey(evt) {
+ 
+            // Only ASCII character in that range allowed
+            let ASCIICode = (evt.which) ? evt.which : evt.keyCode
+            if (ASCIICode > 31 && (ASCIICode < 48 || ASCIICode > 57))
+                return false;
+            return true;
+        }
+
+
+        function keynotEspaciosenBlanco(evt) {
+            var key = evt.keyCode;
+            if (key == 32) {
+                return false;
+            } else {
+                return true;
+            }
+        }
+
+        document.getElementById('nombre').addEventListener('input', function() {
+            if (this.value.length > 50) {
+                this.value = this.value.slice(0, 50);
+            }
+        });
+
+        function validarCedula() {
+            var cad = document.getElementById("cedula").value.trim();
+            var total = 0;
+            var longitud = cad.length;
+            var longcheck = longitud - 1;
+
+            if (cad !== "" && longitud === 10) {
+                for (let i = 0; i < longcheck; i++) {
+                    if (i % 2 === 0) {
+                        var aux = cad.charAt(i) * 2;
+                        if (aux > 9) aux -= 9;
+                        total += aux;
+                    } else {
+                        total += parseInt(cad.charAt(i)); // parseInt suma en lugar de concatenar
+                    }
+                }
+
+                total = total % 10 ? 10 - total % 10 : 0;
+
+                if (cad.charAt(longitud - 1) == total) {
+                    
+                    return true;
+                } else {
+                    document.getElementById("salida").innerHTML = ("Cédula Inválida");
+                    return false;
+                }
+            } else {
+                document.getElementById("salida").innerHTML = ("Cédula Inválida");
+                return false;
+            }
+        }
+
+        function validarNombre() {
+            var nombre = document.getElementById("nombre").value.trim();
+            if (nombre === '') {
+                alert('Por favor ingrese un nombre de usuario válido.');
+                return false;
+            }
+            return true;
+        }
+        
+        function validarCedulaRegistro() {
+            var cad = document.getElementById("reg-cedula").value.trim();
+            var total = 0;
+            var longitud = cad.length;
+            var longcheck = longitud - 1;
+
+            if (cad !== "" && longitud === 10) {
+                for (let i = 0; i < longcheck; i++) {
+                    if (i % 2 === 0) {
+                        var aux = cad.charAt(i) * 2;
+                        if (aux > 9) aux -= 9;
+                        total += aux;
+                    } else {
+                        total += parseInt(cad.charAt(i)); // parseInt suma en lugar de concatenar
+                    }
+                }
+
+                total = total % 10 ? 10 - total % 10 : 0;
+
+                if (cad.charAt(longitud - 1) == total) {
+                    return true;
+                } else {
+                    document.getElementById("reg-salida").innerHTML = ("Cédula Inválida");
+                    return false;
+                }
+            } else {
+                document.getElementById("reg-salida").innerHTML = ("Cédula Inválida");
+                return false;
+            }
+        }
+
+        function validarNombreRegistro() {
+            var nombre = document.getElementById("reg-nombre").value.trim();
+            if (nombre === '') {
+                alert('Por favor ingrese un nombre de usuario válido.');
+                return false;
+            }
+            return true;
+        }
+        
+        
+        
+        
+        
+        function submitForm(event) {
+
+
+
+            event.preventDefault();
+            if (!validarCedula() || !validarNombre()) {
+                return;
+            }
+
+            var cedula = document.getElementById('cedula').value.trim();
+            var nombre = document.getElementById('nombre').value.trim();
+            //var currentPaths = new URL(window.location.href).host;
+            var currentPath = 'honor.novicompu.com';
+            var formData = {
+                cedula: cedula,
+                nombre: nombre,
+                currentPath: currentPath
+            };
+
+            // almacenar datos en localStorage
+            localStorage.setItem('cedula', formData.cedula);
+            localStorage.setItem('nombre', formData.nombre);
+            let urlLog;
+            let payjoy = 'canchapayjoy.novicompu.com';
+            let epson = 'epson.novicompu.com';
+            let honor = 'honor.novicompu.com';
+            let pacifico = 'pacifico.novicompu.com';
+
+            console.log('currentPathss:', currentPath);
+            console.log('honor:', honor);
+                
+            if (currentPath === pacifico || currentPath === honor || currentPath === epson) {
+                urlLog = 'submit-loginMarcas';
+                //urlLog = 'submit-login';
+            } else if (currentPath === payjoy) {
+                urlLog = 'submit-login';
+            }
+
+            console.log('urlLog:', urlLog); 
+            fetch(`${urlApi}/${urlLog}`, {
+           
+                
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Respuesta del servidor:', data);
+
+                if (data.error) {
+                    console.error('Error en la respuesta del servidor:', data.error);
+                    // mostrar mensaje de error en el formulario
+                    document.getElementById('salida').innerText = data.error;
+                    return;
+
+                } else {
+                    console.log('Datos enviados:', data);
+                    // guardar datos en localStorage
+                    localStorage.setItem('token', data.token);  
+                    verJuego = true;
+                    // activar gameContainer
+                    document.getElementById('game-container').style.display = 'block';
+                    console.log('Cargando scripts del juego...');
+                    loadGameScripts();
+                }
+                document.getElementById('user-info-form').remove();
+            })
+            .catch(error => {
+                console.error('Error al enviar los datos:', error);
+            });
+        }
+
+
+        function submitRegistrationForm(event) {
+            console.log('submitRegistrationForm');
+            event.preventDefault();
+            if (!validarCedulaRegistro() || !validarNombreRegistro()) {
+                return;
+            }
+            
+
+            var cedula = document.getElementById('reg-cedula').value.trim();
+            var nombre = document.getElementById('reg-nombre').value.trim();
+            var telefono = document.getElementById('telefono').value.trim();
+            var codigoFactura = document.getElementById('codigoFactura').value.trim();
+            var currentPath = 'pacifico.novicompu.com';
+            //var currentPath = new URL(window.location.href).host;
+            var formData = {
+                cedula: cedula,
+                nombre: nombre,
+                telefono: telefono,
+                codigoFactura: codigoFactura,
+                currentPath: currentPath
+            };
+
+
+            fetch(`${urlApi}/submit-registration`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Respuesta del servidor:', data);
+
+                if (data.error) {
+                    console.error('Error en la respuesta del servidor:', data.error);
+                    // mostrar mensaje de error en el formulario
+                    document.getElementById('reg-salida').innerText = data.error;
+                    return;
+
+                } else {
+                    // ocultar el formulario de registro y mostrar el de inicio de sesión
+                    document.getElementById('registration-form').style.display = 'none';
+                    document.getElementById('user-info-form').style.display = 'block';
+                }
+                //limpiar los campos del formulario
+                document.getElementById('reg-cedula').value = '';
+                document.getElementById('reg-nombre').value = '';
+                document.getElementById('telefono').value = '';
+                document.getElementById('codigoFactura').value = '';
+                document.getElementById('reg-salida').innerText = '';
+                
+            })
+            .catch(error => {
+                console.error('Error al enviar los datos:', error);
+            });
+        }
+
+
+
+        function loadScript(src, callback) {
+            let script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = src;
+            script.onload = callback;
+            document.body.appendChild(script);
+        }
+
+        function loadGameScripts() {
+            const scripts = [
+                "js/easeljs-NEXT.min.js",
+                "js/tweenjs.js",
+                "js/screenfull.js",
+                "js/howler.min.js",
+                "js/platform.js",
+                "js/ios_fullscreen.js",
+                "js/ctl_utils.js",
+                "js/sprite_lib.js",
+                "js/settings.js",
+                "js/CLang.min.js",
+                "js/CPreloader.js",
+                "js/CMain.js",
+                "js/CTextButton.js",
+                "js/CToggle.js",
+                "js/CGfxButton.js",
+                "js/CMenu.js",
+                "js/CGame.js",
+                "js/CInterface.js",
+                "js/cannon.js",
+                "js/cannon.demo.js",
+                "js/CBall.js",
+                "js/CScenario.js",
+                "js/Three.js",
+                "js/Detector.js",
+                "js/smoothie.js",
+                "js/Stats.js",
+                "js/TrackballControls.js",
+                "js/dat.gui.js",
+                "js/CWinPanel.js",
+                "js/CAreYouSurePanel.js",
+                "js/CCreditsPanel.js",
+                "js/CPause.js",
+                "js/CGoalKeeper.js",
+                "js/CStartBall.js",
+                "js/CVector2.js",
+                "js/CPlayer.js",
+                "js/CScoreBoard.js",
+                "js/CRollingScore.js",
+                "js/CLaunchBoard.js",
+                "js/CHandSwipeAnim.js",
+                "js/CHelpText.js",
+                "js/CGoal.js",
+                "js/CCTLText.js"
+            ];
+
+            function loadNextScript(index) {
+                if (index < scripts.length) {
+                    loadScript(scripts[index], function() {
+                        loadNextScript(index + 1);
+                    });
+                } else {
+                    initializeGame();
+                }
+            }
+
+            // Load jQuery first, then other scripts
+            loadScript("js/jquery-3.2.1.min.js", function() {
+                loadNextScript(0);
+            });
+        }
+
+        function initializeGame() {
+            if (!verJuego) return;
+            // Aquí inicia el código del juego
+            var countdownTime = 8000;
+            var endTime;
+            var timerInterval;
+
+            function startTimer() {
+                endTime = Date.now() + countdownTime;
+                document.getElementById('timer').style.display = 'block';
+                timerInterval = setInterval(updateTimer, 1000);
+            }
+
+            function resetTimer() {
+                clearInterval(timerInterval);
+                document.getElementById('timer').innerText = "03:00";
+                document.getElementById('timer').style.display = 'none';
+            }
+
+            function updateTimer() {
+                var remainingTime = endTime - Date.now();
+                if (remainingTime <= 0) {
+                    clearInterval(timerInterval);
+                    document.getElementById('timer').innerText = "00:00";
+                    endGame();
+                    // ocultar el timer
+                    document.getElementById('timer').style.display = 'none';
+                    return;
+                }
+                var minutes = Math.floor(remainingTime / 60000);
+                var seconds = Math.floor((remainingTime % 60000) / 1000);
+                document.getElementById('timer').innerText = 
+                    (minutes < 10 ? "0" : "") + minutes + ":" + 
+                    (seconds < 10 ? "0" : "") + seconds;
+            }
+
+            function endGame() {
+                if (typeof s_oGame !== 'undefined') {
+                    s_oGame.gameOver();
+                }
+            }
+
+            $(document).ready(function () {
+                var oMain = new CMain({
+                    area_goal: [{id: 0, probability: 100}, {id: 1, probability: 80}, {id: 2, probability: 60},
+                        {id: 3, probability: 80}, {id: 4, probability: 100}, {id: 5, probability: 75},
+                        {id: 6, probability: 60}, {id: 7, probability: 50}, {id: 8, probability: 60},
+                        {id: 9, probability: 75}, {id: 10, probability: 80}, {id: 11, probability: 65},
+                        {id: 12, probability: 70}, {id: 13, probability: 65}, {id: 14, probability: 80}],
+                    num_of_penalty: 1000,
+                    multiplier_step: 0.1,
+                    audio_enable_on_startup: false,
+                    fullscreen: true,
+                    check_orientation: true,
+                    num_levels_for_ads: 2
+                });
+
+                $(oMain).on("start_level", function (evt, iLevel) {
+                    startTimer();
+                });
+
+                $(oMain).on("restart_level", function (evt, iLevel) {
+                    resetTimer();
+                    startTimer();
+                });
+
+                $(oMain).on("end_session", function (evt) {
+                    resetTimer();
+                });
+
+                if (isIOS()) {
+                    setTimeout(function () {
+                        sizeHandler();
+                    }, 200);
+                } else {
+                    sizeHandler();
+                }
+            });
+        }
+    </script>
+</head>
+<body ondragstart="return false;" ondrop="return false;">
+    <img src="sprites/bg_game.jpg" class="bgImagenLogin"
+        alt="Logo" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;">
+    
+    <div id="user-info-form">
+        <h2 class="text-center text-primary mb-4">Ingresa tus datos</h2>
+        <form id="user-form" action="#">
+            <div class="form-group">
+                <label for="cedula" class="h5">Cédula:</label>
+                <input type="text" id="cedula" name="cedula" required class="form-control"
+                    onkeypress="return onlyNumberKey(event)" maxlength="10"
+                >
+            </div>
+            <div class="form-group">
+                <label for="nombre" class="h5">Usuario:</label>
+                <input type="text" id="nombre" name="nombre" required class="form-control"
+                    maxlength="50"
+                >
+            </div>
+            <p id="salida" class="text-center text-danger"></p>
+            <div class="d-flex justify-content-center w-100">
+                <button id="submit-button" onclick="submitForm(event)" type="button" class="btn btn-success btn-lg btn-block w-100">Enviar</button>
+            </div>
+            <br>
+            <button id="show-scores-button" type="button" class="btn btn-primary btn-lg btn-block w-100">Ver mejores puntajes</button>
+            <p class="text-center mt-3 enlaceRegistro">No te has registrado? <a href="#" onclick="showRegistrationForm()">Regístrate y participa</a></p>
+      
+        </form>
+    </div>
+
+
+    <div id="registration-form">
+        <h2 class="text-center text-primary mb-4">Regístrate</h2>
+        <form id="registration-user-form" onsubmit="submitRegistrationForm(event)">
+            <div class="form-group">
+                <label for="reg-cedula" class="h5">Cédula:</label>
+                <input type="text" id="reg-cedula" name="cedula" required class="form-control"
+                    onkeypress="return onlyNumberKey(event)" maxlength="10">
+            </div>
+            <div class="form-group">
+                <label for="reg-nombre" class="h5">Usuario:</label>
+                <input type="text" id="reg-nombre" name="nombre" required class="form-control" maxlength="50">
+            </div>
+            <div class="form-group">
+                <label for="telefono" class="h5">Celular:</label>
+                <input type="text" id="telefono" name="telefono" required class="form-control" 
+                    onkeypress="return onlyNumberKey(event)" maxlength="10">
+            </div>
+            <div class="form-group">
+                <label for="codigoFactura" class="h5">Código de Factura:</label>
+                <input type="text" id="codigoFactura" name="codigoFactura" required class="form-control" 
+                    onkeypress="return keynotEspaciosenBlanco(event)"
+                maxlength="20">
+            </div>
+            <p id="reg-salida" class="text-center text-danger"></p>
+            <div class="d-flex justify-content-center w-100">
+                <button id="reg-submit-button" type="submit" class="btn btn-success btn-lg btn-block w-100">Enviar</button>
+            </div>
+            <!-- boton para regresar al formulario de inicio de sesión -->
+            <p class="text-center mt-3">Ya tienes cuenta? <a href="#" onclick="document.getElementById('registration-form').style.display = 'none'; document.getElementById('user-info-form').style.display = 'block';">Inicia sesión</a></p>
+
+            <br>
+        </form>
+    </div>
+    
+    
+    <div id="game-container" style="display:none;">
+        <div style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%"></div>
+        <div id="timer" style="position: fixed; top: 10px; left: 7%; font-size: 24px; color: white; background-color: rgba(0, 0, 0, 0.7); padding: 15px; border-radius: 10px; z-index: 1000;">
+        </div>
+        
+        <div class="check-fonts">
+            <p class="check-font-1">test 1</p>
+        </div>
+        <canvas id="canvas" class='ani_hack' width="1360" height="640"> </canvas>
+        <div data-orientation="landscape" class="orientation-msg-container"><p class="orientation-msg-text">Please rotate your device</p></div>
+        <div id="block_game" style="position: fixed; background-color: transparent; top: 0px; left: 0px; width: 100%; height: 100%; display:none"></div>
+    </div>
+    
+    <div id="scores-table-container" style="display:none; position: fixed; top: 20%; left: 50%; transform: translate(-50%, -20%); background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; width: 80%;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="text-align: center; margin-bottom: 20px; flex: 1;">Mejores puntajes</h2>
+        </div>
+        <table id="scores-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="text-align: center;">
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Posición</th>
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Nombre</th>
+                    <th style="padding: 10px; border: 1px solid #ccc; background-color: #f8f9fa;">Puntaje Total</th>
+                </tr>
+            </thead>
+            <tbody id="scores-table-body" style="text-align: center;">
+                <!-- Los puntajes se insertarán aquí dinámicamente -->
+            </tbody>
+        </table>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+            <button id="close-scores-button" style="width: 30%; padding: 10px 20px; font-size: 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">Cerrar</button>
+        </div>
+    </div>
+    
+    <script>
+        let urlApi = 'https://api-game.novicompu.com';
+        //let urlApi = 'http://localhost:3001';
+
+
+        document.getElementById('show-scores-button').addEventListener('click', function() {
+            const marca = new URL(window.location.href).host;
+            //const marca = 'payjoy.novicompu.com';
+
+            fetch(`${urlApi}/get-best-scores`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ marca })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const scoresTable = document.getElementById('scores-table').getElementsByTagName('tbody')[0];
+                scoresTable.innerHTML = ''; // Limpiar la tabla
+
+                data.forEach((score, index) => {
+                    const row = scoresTable.insertRow();
+                    const posicionCell = row.insertCell(0);
+                    const nombreCell = row.insertCell(1);
+                    const totalScoreCell = row.insertCell(2);
+
+                    posicionCell.textContent = index + 1; // Asignar la posición
+                    nombreCell.textContent = score.nombre;
+                    totalScoreCell.textContent = score.totalScore;
+                });
+
+                document.getElementById('scores-table-container').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error al obtener los puntajes:', error);
+            });
+        });
+
+
+        document.getElementById('close-scores-button').addEventListener('click', function() {
+            document.getElementById('scores-table-container').style.display = 'none';
+        });
+
+        // Para cerrar el modal al hacer clic fuera de él
+        window.onclick = function(event) {
+            const scoresTableContainer = document.getElementById('scores-table-container');
+            if (event.target == scoresTableContainer) {
+                scoresTableContainer.style.display = "none";
+            }
+        }
+    </script>
+</body>
+</html>

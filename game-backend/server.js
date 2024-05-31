@@ -112,20 +112,20 @@ app.post('/submit-login', async (req, res) => {
 app.post('/submit-loginMarcas', async (req, res) => {
   const { cedula, nombre, currentPath } = req.body;
   let marca;
+
+  console.log('Datos recibidoszzz:', currentPath);
+  console.log('Datos process.env.pacificozzz:', process.env.pacifico);
   // casos de currentPath
-  switch (currentPath) {
-    case  process.env.epson:
-      marca = 'epson';
-      break;
-    case  process.env.honor:
-      marca = 'honor';
-      break;
-    case  process.env.pacifico:
-      marca = 'pacifico';
-      break;
-    default:
-      marca = 'epson';
-      break;
+  if (process.env.epson === currentPath) {
+    marca = 'epson';
+  } else if (process.env.honor === currentPath) {
+    marca = 'honor';
+  } else if (process.env.pacifico === currentPath) {
+    marca = 'pacifico';
+  } else if (process.env.payjoy === currentPath) {
+    marca = 'payjoy';
+  } else {
+    marca = '';
   }
 
   console.log('Datos recibidos:', currentPath);
@@ -182,7 +182,7 @@ app.post('/submit-registration', async (req, res) => {
   console.log('si llega aca sissisisi:', cedula, nombre, telefono, codigoFactura, currentPath);
   console.log('Datos currentPath:', currentPath);
   console.log('Datos process.env.pacifico:', process.env.pacifico);
-  let marca;
+  let marca; 
 
   // Determinar el valor de `marca` basado en `currentPath`
 
@@ -397,17 +397,20 @@ app.post('/save-score', async (req, res) => {
   const { token, totalScore } = req.body;
   let { currentPath } = req.body;
 
-  if (process.env.epson) {
-    currentPath = 'epson';
-  } else if (process.env.honor) {
-    currentPath = 'honor';
-  } else if (process.env.pacifico) {
-    currentPath = 'pacifico';
+  let marca;
+  if (process.env.epson === currentPath) {
+    marca = 'epson';
+  } else if (process.env.honor === currentPath) {
+    marca = 'honor';
+  } else if (process.env.pacifico === currentPath) {
+    marca = 'pacifico';
+  } else if (process.env.payjoy === currentPath) {
+    marca = 'payjoy';
   } else {
-    currentPath = 'epson';
+    marca = '';
   }
 
-  let marca = currentPath;
+  //let marca = currentPath;
 
   if (!token) {
     console.error('Token faltante');
@@ -469,14 +472,18 @@ app.post('/save-score', async (req, res) => {
 app.post('/get-best-scores', async (req, res) => {
   let { marca } = req.body;
 
-  if (process.env.epson) {
+  console.log('Datos de marca:', marca);
+  console.log('Datos de process.env.pacifico:', process.env.pacifico);
+  if (process.env.epson === marca) {
     marca = 'epson';
-  } else if (process.env.honor) {
+  } else if (process.env.honor === marca) {
     marca = 'honor';
-  } else if (process.env.pacifico) {
+  } else if (process.env.pacifico === marca) {
     marca = 'pacifico';
+  } else if (process.env.payjoy === marca) {
+    marca = 'payjoy';
   } else {
-    marca = 'epson';
+    marca = '';
   }
 
   if (!marca) {
