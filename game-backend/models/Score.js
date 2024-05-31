@@ -10,7 +10,7 @@ const User = sequelize.define('User', {
   cedula: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true
+    
   },
   nombre: {
     type: DataTypes.STRING,
@@ -20,10 +20,31 @@ const User = sequelize.define('User', {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 0
-  }
+  },
+  fecha_creacion: {
+    type: DataTypes.DATE,
+    allowNull: false
+  },
+  fecha_actualizacion: {
+    type: DataTypes.DATE,
+    allowNull: false
+  },
+  marca: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  telefono: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  codigoFactura: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+
 }, {
-  tableName: 'usuarios', // Nombre de la tabla en tu base de datos
-  timestamps: false
+  tableName: 'usuarios',
+  timestamps: false // Deshabilitar timestamps automáticos
 });
 
 module.exports = User;
