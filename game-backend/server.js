@@ -333,9 +333,10 @@ app.post('/calculate-score', async (req, res) => {
     const secretPassphrase = process.env.SECRET_PASSPHRASE;
     const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
     const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-
+    
     const { puntos, makeGoal, area, token } = decryptedData;
 
+    console.log('Datos recibidos:', decryptedData);
     if (!token) {
       return res.status(400).json({ error: 'Token es requerido' });
     }
@@ -357,10 +358,10 @@ app.post('/calculate-score', async (req, res) => {
     let calculatedPoints = 0;
 
     if (areasValidas.includes(area)) {
+      const scoreFactor = 2;
+      const goalFactor = 3;
+      const areaFactor = area === 0 ? 1 : Math.floor(area / 2); // Asegurar que el área 0 tenga un valor positivo en el cálculo
       if (makeGoal) {
-        const scoreFactor = 2;
-        const goalFactor = 3;
-        const areaFactor = Math.floor(area / 2);
         calculatedPoints = (scoreFactor * goalFactor * areaFactor) + puntos;
       }
     }
@@ -383,6 +384,8 @@ app.post('/calculate-score', async (req, res) => {
     res.status(500).json({ error: 'Error al almacenar los datos' });
   }
 });
+
+
 
 // guardar-score
 app.post('/save-score', async (req, res) => {
