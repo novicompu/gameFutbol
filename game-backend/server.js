@@ -36,7 +36,6 @@ app.post('/submit-login', async (req, res) => {
   const { cedula, nombre, currentPath } = req.body;
   let marca = 'payjoy';
 
-  console.log('Datos recibidos:', currentPath);
 
   if (!cedula || !nombre) {
     console.error('Cédula o nombre faltantes');
@@ -65,7 +64,6 @@ app.post('/submit-login', async (req, res) => {
           d: { nombre, cedula, totalScore: 0 }  // Restablecemos el totalScore a 0
         });
 
-        console.log('Sesión creada:', session.token);
         return res.status(200).json({ message: 'Credenciales correctas', token: session.token });
       } else {
         console.error('Nombre incorrecto');
@@ -113,8 +111,6 @@ app.post('/submit-loginMarcas', async (req, res) => {
   const { cedula, nombre, currentPath } = req.body;
   let marca;
 
-  console.log('Datos recibidoszzz:', currentPath);
-  console.log('Datos process.env.pacificozzz:', process.env.pacifico);
   // casos de currentPath
   if (process.env.epson === currentPath) {
     marca = 'epson';
@@ -250,7 +246,7 @@ app.post('/submit-registration', async (req, res) => {
 
 // funcion para validar factura 
 async function validarFactura(codigoFactura, marca) {
-  const token = 'NSPvNeHex1sJozJYtwstCLSphfxF2hQK';
+  const token =  process.env.tokenFacturacion;
   let facturaUrl = `FACEL-${codigoFactura}-NVC01`;
   const url = `http://45.77.166.183/api/invoices/bycode/${facturaUrl}?token=${token}`;
   const controller = new AbortController();
@@ -320,11 +316,9 @@ app.listen(port, async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync();
-    console.log('Conexión a la base de datos establecida con éxito.');
   } catch (err) {
     console.error('No se pudo conectar a la base de datos:', err);
   }
-  console.log(`Servidor escuchando en http://localhost:${port}`);
 });
 
 // calculate-score
@@ -341,7 +335,6 @@ app.post('/calculate-score', async (req, res) => {
     const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
 
     const { puntos, makeGoal, area, token } = decryptedData;
-    console.log('Datos desencriptados:', decryptedData);
 
     if (!token) {
       return res.status(400).json({ error: 'Token es requerido' });
@@ -372,7 +365,6 @@ app.post('/calculate-score', async (req, res) => {
       }
     }
 
-    console.log('total scorexxx:', sessionData.d.totalScore);
     const totalScore = sessionData.d.totalScore || 0;
     const newTotalScore = totalScore + calculatedPoints;
 
@@ -472,8 +464,6 @@ app.post('/save-score', async (req, res) => {
 app.post('/get-best-scores', async (req, res) => {
   let { marca } = req.body;
 
-  console.log('Datos de marca:', marca);
-  console.log('Datos de process.env.pacifico:', process.env.pacifico);
   if (process.env.epson === marca) {
     marca = 'epson';
   } else if (process.env.honor === marca) {
