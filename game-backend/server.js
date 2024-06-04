@@ -401,9 +401,7 @@ app.post('/save-score', async (req, res) => {
     marca = 'pacifico';
   } else if (process.env.payjoy === currentPath) {
     marca = 'payjoy';
-  } else {
-    marca = '';
-  }
+  } 
 
   //let marca = currentPath;
 
@@ -451,8 +449,24 @@ app.post('/save-score', async (req, res) => {
 
       res.json({ message: 'Datos guardados', totalScore, mejorScore });
     } else {
-      console.error('Usuario no encontrado');
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      // guardar los datos del usuario por primera vez
+      await User.create({
+        cedula,
+        nombre,
+        totalScore,
+        fecha_creacion: new Date(),
+        fecha_actualizacion: new Date(),
+        marca
+      });
+
+      // Eliminar la sesión de Redis
+      await rs.kill({
+        app: rsApp,
+        token: token
+      });
+
+      res.json({ message: 'Datos guardados', totalScore, mejorScore: totalScore });
+
     }
 
   } catch (err) {
@@ -467,6 +481,8 @@ app.post('/save-score', async (req, res) => {
 app.post('/get-best-scores', async (req, res) => {
   let { marca } = req.body;
 
+ 
+  console.log('Datos recibidos:', marca);
   if (process.env.epson === marca) {
     marca = 'epson';
   } else if (process.env.honor === marca) {
@@ -475,12 +491,11 @@ app.post('/get-best-scores', async (req, res) => {
     marca = 'pacifico';
   } else if (process.env.payjoy === marca) {
     marca = 'payjoy';
-  } else {
-    marca = '';
-  }
+  } 
 
+  console.log('Datos marcaaa:', marca);
   if (!marca) {
-    return res.status(400).json({ error: 'Marca es requerida' });
+    return res.status(400).json({ error: 'Marca es requerida' , marca});
   }
 
   try {
@@ -490,6 +505,14 @@ app.post('/get-best-scores', async (req, res) => {
       order: [['totalScore', 'DESC']],
       limit: 10
     });
+
+    // si no hay puntajes registrados devolver los valores en 0
+    if (scores.length === 0) {
+      return res.json([
+        { nombre: 'Usuario 1', totalScore: 0 }
+      ]);
+    }
+    
 
     res.json(scores);
   } catch (err) {
