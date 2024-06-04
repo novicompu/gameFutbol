@@ -120,9 +120,7 @@ app.post('/submit-loginMarcas', async (req, res) => {
     marca = 'pacifico';
   } else if (process.env.payjoy === currentPath) {
     marca = 'payjoy';
-  } else {
-    marca = '';
-  }
+  } 
 
   console.log('Datos recibidos:', currentPath);
 
@@ -188,9 +186,10 @@ app.post('/submit-registration', async (req, res) => {
     marca = 'honor';
   } else if (currentPath === process.env.pacifico) {
     marca = 'pacifico';
-  } else {
-    marca = '';
+  } else if (currentPath === process.env.payjoy) {
+    marca = 'payjoy';
   }
+
 
 
   console.log('Datos de marca:', marca);
@@ -290,6 +289,9 @@ async function validarFactura(codigoFactura, marca) {
               return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
           }
       } else if (marca === 'pacifico') {
+        // solo verificamos que la factura exista
+        return invoiceData;
+      } else if (marca === 'payjoy') {
         // solo verificamos que la factura exista
         return invoiceData;
       }
@@ -403,6 +405,7 @@ app.post('/save-score', async (req, res) => {
     marca = 'payjoy';
   } 
 
+  
   //let marca = currentPath;
 
   if (!token) {
@@ -424,7 +427,7 @@ app.post('/save-score', async (req, res) => {
 
     // Guardar los datos en la base de datos MySQL
     const { cedula, nombre } = sessionData.d;
-    
+    console.log('Datos recibidos:', marca);
     // Recuperar el usuario actual para verificar el totalScore
     const usuario = await User.findOne({ where: { cedula, marca } });
 
