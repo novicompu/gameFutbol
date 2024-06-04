@@ -173,9 +173,6 @@ app.post('/submit-loginMarcas', async (req, res) => {
 app.post('/submit-registration', async (req, res) => {
   const { cedula, nombre, telefono, codigoFactura, currentPath } = req.body;
   
-  console.log('si llega aca sissisisi:', cedula, nombre, telefono, codigoFactura, currentPath);
-  console.log('Datos currentPath:', currentPath);
-  console.log('Datos process.env.pacifico:', process.env.pacifico);
   let marca; 
 
   // Determinar el valor de `marca` basado en `currentPath`
@@ -192,7 +189,7 @@ app.post('/submit-registration', async (req, res) => {
 
 
 
-  console.log('Datos de marca:', marca);
+  
 
   if (!cedula || !nombre || !telefono || !codigoFactura) {
       console.error('Datos faltantes');
@@ -218,12 +215,17 @@ app.post('/submit-registration', async (req, res) => {
         console.error('Usuario ya registrado');
         return res.status(400).json({ error: 'Usuario ya registrado' });
     } else {
+
+        // eliminar caracteres no numéricos del codigo de factura
+
+        
+        const codigoFacturaNumeros = codigoFactura.replace(/\D/g, '');
         // Guardar los datos en la base de datos MySQL
         const nuevoUsuario = await User.create({
             cedula,
             nombre,
             telefono,
-            codigoFactura,
+            codigoFactura: codigoFacturaNumeros,
             totalScore: 0,
             fecha_creacion: new Date(),
             fecha_actualizacion: new Date(),
@@ -245,8 +247,9 @@ app.post('/submit-registration', async (req, res) => {
 
 // funcion para validar factura 
 async function validarFactura(codigoFactura, marca) {
-  const token =  process.env.tokenFacturacion;
-  let facturaUrl = `FACEL-${codigoFactura}-NVC01`;
+  const codigoFacturaNumeros = codigoFactura.replace(/\D/g, '');
+  const token = process.env.tokenFacturacion;
+  let facturaUrl = `FACEL-${codigoFacturaNumeros}-NVC01`;
   const url = `http://45.77.166.183/api/invoices/bycode/${facturaUrl}?token=${token}`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
@@ -296,13 +299,7 @@ async function validarFactura(codigoFactura, marca) {
         return invoiceData;
       }
 
-      // const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1GSM'));
-
-      if (hasValidProduct) {
-          return invoiceData;
-      } else {
-          return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
-      }
+      
   } catch (error) {
       if (error.name === 'AbortError') {
           return { error: 'Tiempo de espera agotado al validar la factura' };
@@ -338,7 +335,6 @@ app.post('/calculate-score', async (req, res) => {
     
     const { puntos, makeGoal, area, token } = decryptedData;
 
-    console.log('Datos recibidos:', decryptedData);
     if (!token) {
       return res.status(400).json({ error: 'Token es requerido' });
     }
