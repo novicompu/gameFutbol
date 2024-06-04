@@ -298,11 +298,6 @@ async function validarFactura(codigoFactura, marca) {
 
       // const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1GSM'));
 
-      if (hasValidProduct) {
-          return invoiceData;
-      } else {
-          return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
-      }
   } catch (error) {
       if (error.name === 'AbortError') {
           return { error: 'Tiempo de espera agotado al validar la factura' };
