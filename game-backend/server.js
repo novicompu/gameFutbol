@@ -202,7 +202,7 @@ app.post('/submit-registration', async (req, res) => {
     
     invoiceData = await validarFactura(codigoFactura, marca);
 
-    if (invoiceData.error) {
+    if (invoiceData.error !== undefined) {
         console.error('Factura no válida:', invoiceData.error);
         return res.status(400).json({ error: 'Datos de factura inválido' });
     }
@@ -268,7 +268,7 @@ async function validarFactura(codigoFactura, marca) {
       if (response.status === 404) {
           return { error: 'Factura no encontrada' };
       } else if (response.status >= 500) {
-          return { error: 'Error del servidor al validar la factura' };
+          return { error: 'Error del servidor al validar la factura', status: response.status };
       } else if (!response.ok) {
           return { error: response.statusText };
       }
