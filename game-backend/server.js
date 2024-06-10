@@ -187,6 +187,9 @@ app.post('/submit-registration', async (req, res) => {
     marca = 'payjoy';
   }
 
+  console.log('Datos recibidos:', marca);
+
+
 
 
   
@@ -200,12 +203,12 @@ app.post('/submit-registration', async (req, res) => {
     let invoiceData = {};
     
     
-    // invoiceData = await validarFactura(codigoFactura, marca);
+    invoiceData = await validarFactura(codigoFactura, marca);
 
-    // if (invoiceData.error !== undefined) {
-    //     console.error('Factura no válida:', invoiceData.error);
-    //     return res.status(400).json({ error: 'Datos de factura inválido' });
-    // }
+    if (invoiceData.error !== undefined) {
+        console.error('Factura no válida:', invoiceData.error);
+        return res.status(400).json({ error: 'Datos de factura inválido' });
+    }
    
 
     // Verificar si la cédula ya existe en la base de datos
@@ -288,13 +291,12 @@ async function validarFactura(codigoFactura, marca) {
               return { error: 'Factura inválida: ningún producto con el código "1EEPS"' };
           }
       } else if (marca === 'honor') {
-          // const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1CHON'));
-          // if (hasValidProduct) {
-          //     return invoiceData;
-          // } else {
-          //     return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
-          // }
-          return invoiceData;
+          const hasValidProduct = invoiceData.items.some(item => item.product.code.startsWith('1CHON'));
+          if (hasValidProduct) {
+              return invoiceData;
+          } else {
+              return { error: 'Factura inválida: ningún producto con el código "1CHON"' };
+          }
       } else if (marca === 'pacifico') {
         // solo verificamos que la factura exista
         return invoiceData;
