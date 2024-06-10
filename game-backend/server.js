@@ -245,80 +245,7 @@ app.post('/submit-registration', async (req, res) => {
 });
 
 
-// funcion para validar factura 
-app.post('/submit-registration', async (req, res) => {
-  const { cedula, nombre, telefono, codigoFactura, currentPath } = req.body;
-  
-  let marca; 
 
-  // Determinar el valor de `marca` basado en `currentPath`
-
-  if (currentPath === process.env.epson) {
-    marca = 'epson';
-  } else if (currentPath === process.env.honor) {
-    marca = 'honor';
-  } else if (currentPath === process.env.pacifico) {
-    marca = 'pacifico';
-  } else if (currentPath === process.env.payjoy) {
-    marca = 'payjoy';
-  }
-
-
-
-  
-
-  if (!cedula || !nombre || !telefono || !codigoFactura) {
-      console.error('Datos faltantes');
-      return res.status(400).json({ error: 'Todos los campos son requeridos' });
-  }
-
-  try {
-    let invoiceData = {};
-    
-    
-    invoiceData = await validarFactura(codigoFactura, marca);
-
-    if (invoiceData.error !== undefined) {
-        console.error('Factura no válida:', invoiceData.error);
-        return res.status(400).json({ error: 'Datos de factura inválido' });
-    }
-   
-
-    // Verificar si la cédula ya existe en la base de datos
-    const usuarioExistente = await User.findOne({ where: { cedula, marca } });
-
-    if (usuarioExistente) {
-        console.error('Usuario ya registrado');
-        return res.status(400).json({ error: 'Usuario ya registrado' });
-    } else {
-
-        // eliminar caracteres no numéricos del codigo de factura
-
-        
-        const codigoFacturaNumeros = codigoFactura.replace(/\D/g, '');
-        // Guardar los datos en la base de datos MySQL
-        const nuevoUsuario = await User.create({
-            cedula,
-            nombre,
-            telefono,
-            codigoFactura: codigoFacturaNumeros,
-            totalScore: 0,
-            fecha_creacion: new Date(),
-            fecha_actualizacion: new Date(),
-            marca: marca
-        });
-
-        // Devolver un mensaje de éxito
-        res.json({ message: 'Usuario registrado correctamente' });
-    }
-  } catch (err) {
-      console.error('Error al procesar los datos:', err);
-
-      if (!res.headersSent) {
-          res.status(500).json({ error: 'Error al procesar los datos' });
-      }
-  }
-});
 
 
 // funcion para validar factura 
@@ -378,6 +305,8 @@ async function validarFactura(codigoFactura, marca) {
 
       
   } catch (error) {
+    console.error('Error al validar la factura:', error);
+    console.error('URL:', url);
       if (error.name === 'AbortError') {
           return { error: 'Tiempo de espera agotado al validar la factura' };
       } else {
