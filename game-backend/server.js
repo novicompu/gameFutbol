@@ -11,14 +11,34 @@ const User = require('./models/Score');
 const CryptoJS = require('crypto-js');
 const e = require('express');
 
-// Configuración de RedisSessions
-const rs = new RedisSessions({
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  options: {
-    password: process.env.REDIS_PASSWORD
-  }
+// Configuración de RedisSessions.
+// REDIS_HOST admite tanto el hostname suelto como una URL redis:// completa.
+const { resolveConnection } = require('./config/connection');
+
+const redisCfg = resolveConnection(process.env.REDIS_HOST, {
+  host: '127.0.0.1',
+  port: Number(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD
 });
+
+if (redisCfg.fromUrl) {
+  console.log(`Redis: configuracion tomada de la URL en REDIS_HOST (host ${redisCfg.host}:${redisCfg.port})`);
+}
+
+const rs = new RedisSessions({
+  host: redisCfg.host,
+  port: redisCfg.port,
+  options: redisCfg.password ? { password: redisCfg.password } : {}
+});
+
+// Sin este manejador un fallo de conexion emite un 'error' sin capturar y
+// tumba el proceso entero con un stack de Node, en vez de un mensaje util.
+// `redis` es privada en los tipos de la libreria, de ahi la comprobacion.
+if (rs.redis && typeof rs.redis.on === 'function') {
+  rs.redis.on('error', (err) => {
+    console.error(`Error de conexion con Redis (${redisCfg.host}:${redisCfg.port}):`, err.message);
+  });
+}
 
 const rsApp = "myapp";
 
