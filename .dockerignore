@@ -1,4 +1,11 @@
 node_modules
+game-backend/node_modules
+game-backend/.env
 Dockerfile
+.dockerignore
 docker-compose.yml
+docker-compose.prod.yml
 .git
+.github
+mysql-data
+data

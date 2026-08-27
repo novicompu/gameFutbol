@@ -1,18 +1,16 @@
-
-# Usar la imagen base de Node.js
 FROM node:20-alpine
 
-# Instalar dependencias adicionales necesarias para nginx, bash, cron, etc.
-RUN apk update 
+WORKDIR /usr/src/app/game-backend
 
+# Instalar dependencias primero para aprovechar la cache de capas
+COPY game-backend/package*.json ./
+RUN npm ci --omit=dev
 
-# Crear y establecer el directorio de trabajo
-WORKDIR /usr/src/app
+# Codigo de la aplicacion
+COPY game-backend/ ./
 
-# Copiar los archivos de la aplicación
-COPY . .
+ENV NODE_ENV=production
+ENV PORT=3001
+EXPOSE 3001
 
-RUN cd /usr/src/app/game-backend \
-    && npm install
-
-CMD ["node", "/usr/src/app/game-backend/server.js"]
+CMD ["node", "server.js"]

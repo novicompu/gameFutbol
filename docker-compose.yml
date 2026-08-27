@@ -1,21 +1,30 @@
-version: '3.3'
+# Stack SOLO del backend (api + mysql + redis), util para trabajar este repo
+# de forma aislada. Expone la API en http://localhost:3000
+#
+# Para levantar el juego completo (front + api con un solo dominio) usar el
+# docker-compose.yml de la carpeta padre.
+
 services:
-  app:
+  api:
     build:
-      dockerfile: Dockerfile        
-    image: gamefutbol:latest
+      context: .
+    image: gamefutbol-api:latest
+    restart: unless-stopped
     ports:
       - "3000:3001"
     environment:
+      PORT: 3001
+      MARCA: diagamer
+      DB_HOST: mysql
+      DB_PORT: 3306
       DB_USER: root
       DB_PASS: Zafiro30
       DB_NAME: dataGame
-      DB_HOST: mysql
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ''
       SECRET_PASSPHRASE: SCM123LA0VE34A4JUBEA34
-
+      CORS_ORIGIN: '*'
     depends_on:
       mysql:
         condition: service_healthy
@@ -24,7 +33,7 @@ services:
 
   mysql:
     image: mysql:8.0.36
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: Zafiro30
       MYSQL_ROOT_HOST: '%'
@@ -32,25 +41,27 @@ services:
     ports:
       - "3307:3306"
     volumes:
-      - ./mysql-data:/var/lib/mysql
+      - mysql-data:/var/lib/mysql
     shm_size: 512m
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-
+      test: ["CMD", "mysql", "-uroot", "-pZafiro30", "-e", "SELECT 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 40s
 
   redis:
-    image: redis:latest
-    restart: always
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    restart: unless-stopped
     volumes:
-      - ./data:/data
+      - redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
-    shm_size: 512m 
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      timeout: 20s
+      interval: 10s
+      timeout: 10s
       retries: 10
-    
+
+volumes:
+  mysql-data:
+  redis-data:

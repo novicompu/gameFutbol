@@ -20,21 +20,28 @@ const rs = new RedisSessions({
   }
 });
 
-const rsApp = "myapp"; 
+const rsApp = "myapp";
 
+// Un solo dominio => una sola marca. Antes se deducia del host que enviaba
+// el front (currentPath); ahora es fija y viene de la configuracion.
+const MARCA = process.env.MARCA || 'diagamer';
+
+// Con nginx haciendo proxy de /api el origen es el mismo, pero se deja
+// configurable por si el front se sirve desde otro host.
 app.use(cors({
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || '*',
 }));
+
+// Necesario para que req.ip refleje la IP real detras del proxy
+app.set('trust proxy', true);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-app.use('/', express.static('../public'));
-
 // realizar-login
 app.post('/submit-login', async (req, res) => {
-  const { cedula, nombre, currentPath } = req.body;
-  let marca = 'payjoy';
+  const { cedula, nombre } = req.body;
+  const marca = MARCA;
 
 
   if (!cedula || !nombre) {
@@ -108,21 +115,8 @@ app.post('/submit-login', async (req, res) => {
 
 // realizar-login marcas 
 app.post('/submit-loginMarcas', async (req, res) => {
-  const { cedula, nombre, currentPath } = req.body;
-  let marca;
-
-  // casos de currentPath
-  if (process.env.epson === currentPath) {
-    marca = 'epson';
-  } else if (process.env.honor === currentPath) {
-    marca = 'honor';
-  } else if (process.env.pacifico === currentPath) {
-    marca = 'pacifico';
-  } else if (process.env.payjoy === currentPath) {
-    marca = 'payjoy';
-  } 
-
-  console.log('Datos recibidos:', currentPath);
+  const { cedula, nombre } = req.body;
+  const marca = MARCA;
 
   if (!cedula || !nombre) {
     console.error('Cédula o nombre faltantes');
@@ -157,7 +151,12 @@ app.post('/submit-loginMarcas', async (req, res) => {
         console.error('Nombre incorrecto');
         return res.status(400).json({ error: 'Credenciales incorrectas' });
       }
-    } 
+    } else {
+      // Sin esta respuesta la peticion quedaba colgada para todo usuario
+      // que aun no se ha registrado en esta marca.
+      console.error('Usuario no registrado');
+      return res.status(400).json({ error: 'Usuario no registrado. Regístrate primero.' });
+    }
 
   } catch (err) {
     console.error('Error al procesar los datos:', err);
@@ -171,23 +170,9 @@ app.post('/submit-loginMarcas', async (req, res) => {
 
 // solo registro de usuario
 app.post('/submit-registration', async (req, res) => {
-  const { cedula, nombre, telefono, codigoFactura, currentPath } = req.body;
-  
-  let marca; 
+  const { cedula, nombre, telefono, codigoFactura } = req.body;
 
-  // Determinar el valor de `marca` basado en `currentPath`
-
-  if (currentPath === process.env.epson) {
-    marca = 'epson';
-  } else if (currentPath === process.env.honor) {
-    marca = 'honor';
-  } else if (currentPath === process.env.pacifico) {
-    marca = 'pacifico';
-  } else if (currentPath === process.env.payjoy) {
-    marca = 'payjoy';
-  }
-
-  console.log('Datos recibidos:', marca);
+  const marca = MARCA;
 
 
 
@@ -320,10 +305,16 @@ async function validarFactura(codigoFactura, marca) {
 
 
 
-app.listen(port, async () => {
+// Healthcheck para Docker / Dokploy
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', marca: MARCA });
+});
+
+app.listen(port, '0.0.0.0', async () => {
   try {
     await sequelize.authenticate();
     await sequelize.sync();
+    console.log(`Backend escuchando en el puerto ${port} (marca: ${MARCA})`);
   } catch (err) {
     console.error('No se pudo conectar a la base de datos:', err);
   }
@@ -397,21 +388,7 @@ app.post('/calculate-score', async (req, res) => {
 // guardar-score
 app.post('/save-score', async (req, res) => {
   const { token, totalScore } = req.body;
-  let { currentPath } = req.body;
-
-  let marca;
-  if (process.env.epson === currentPath) {
-    marca = 'epson';
-  } else if (process.env.honor === currentPath) {
-    marca = 'honor';
-  } else if (process.env.pacifico === currentPath) {
-    marca = 'pacifico';
-  } else if (process.env.payjoy === currentPath) {
-    marca = 'payjoy';
-  } 
-
-  
-  //let marca = currentPath;
+  const marca = MARCA;
 
   if (!token) {
     console.error('Token faltante');
@@ -487,24 +464,7 @@ app.post('/save-score', async (req, res) => {
 
 // get-best-scores
 app.post('/get-best-scores', async (req, res) => {
-  let { marca } = req.body;
-
- 
-  console.log('Datos recibidos:', marca);
-  if (process.env.epson === marca) {
-    marca = 'epson';
-  } else if (process.env.honor === marca) {
-    marca = 'honor';
-  } else if (process.env.pacifico === marca) {
-    marca = 'pacifico';
-  } else if (process.env.payjoy === marca) {
-    marca = 'payjoy';
-  } 
-
-  console.log('Datos marcaaa:', marca);
-  if (!marca) {
-    return res.status(400).json({ error: 'Marca es requerida' , marca});
-  }
+  const marca = MARCA;
 
   try {
     const scores = await User.findAll({
