@@ -348,11 +348,28 @@ app.post('/calculate-score', async (req, res) => {
     return res.status(400).json({ error: 'Token es requerido' });
   }
 
+  // El descifrado se aisla del resto: si la passphrase del backend no
+  // coincide con la del cliente, TripleDES devuelve basura y el JSON.parse
+  // lanza. Sin este bloque acababa en el catch general como un 500 mudo.
+  let decryptedData;
   try {
     const secretPassphrase = process.env.SECRET_PASSPHRASE;
     const bytes = CryptoJS.TripleDES.decrypt(dataGame, secretPassphrase);
-    const decryptedData = JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
-    
+    const plano = bytes.toString(CryptoJS.enc.Utf8);
+    if (!plano) {
+      throw new Error('el descifrado no produjo texto legible');
+    }
+    decryptedData = JSON.parse(plano);
+  } catch (err) {
+    console.error(
+      'No se pudo descifrar dataGame. Comprueba que SECRET_PASSPHRASE del ' +
+      'backend sea exactamente igual al valor de `xpress` en js/CGame.js ' +
+      'del frontend. Detalle:', err.message
+    );
+    return res.status(400).json({ error: 'Datos de juego ilegibles' });
+  }
+
+  try {
     const { puntos, makeGoal, area, token } = decryptedData;
 
     if (!token) {
@@ -399,6 +416,7 @@ app.post('/calculate-score', async (req, res) => {
 
     res.json({ message: 'Tiro almacenado en Redis', totalScore: newTotalScore });
   } catch (err) {
+    console.error('Error en calculate-score:', err);
     res.status(500).json({ error: 'Error al almacenar los datos' });
   }
 });
