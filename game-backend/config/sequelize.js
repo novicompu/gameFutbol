@@ -18,7 +18,11 @@ if (db.fromUrl) {
 const sequelize = new Sequelize(db.database, db.user, db.password, {
   host: db.host,
   port: db.port,
-  dialect: 'mysql'
+  dialect: 'mysql',
+  // Sequelize imprime cada consulta por consola. Eso inundaba los logs del
+  // servidor y enterraba los errores reales. Se activa con SQL_LOG=true
+  // cuando haga falta depurar.
+  logging: process.env.SQL_LOG === 'true' ? console.log : false
 });
 
 sequelize.authenticate()

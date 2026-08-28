@@ -165,7 +165,6 @@ app.post('/submit-loginMarcas', async (req, res) => {
           d: { nombre, cedula, totalScore: 0 }  // Restablecemos el totalScore a 0
         });
 
-        console.log('Sesión creada:', session.token);
         return res.status(200).json({ message: 'Credenciales correctas', token: session.token });
       } else {
         console.error('Nombre incorrecto');
@@ -447,7 +446,6 @@ app.post('/save-score', async (req, res) => {
 
     // Guardar los datos en la base de datos MySQL
     const { cedula, nombre } = sessionData.d;
-    console.log('Datos recibidos:', marca);
     // Recuperar el usuario actual para verificar el totalScore
     const usuario = await User.findOne({ where: { cedula, marca } });
 
@@ -460,8 +458,6 @@ app.post('/save-score', async (req, res) => {
           { where: { cedula, marca } } // Incluir marca en la condición
         );
         mejorScore = totalScore; // Actualizamos mejorScore al nuevo totalScore
-      } else {
-        console.log(`Total score no actualizado, el nuevo score ${totalScore} no es mayor que el actual ${usuario.totalScore}`);
       }
 
       // Eliminar la sesión de Redis
