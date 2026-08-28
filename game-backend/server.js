@@ -46,6 +46,24 @@ const rsApp = "myapp";
 // el front (currentPath); ahora es fija y viene de la configuracion.
 const MARCA = process.env.MARCA || 'diagamer';
 
+// Cierre del concurso. Pasada esta fecha el juego se sigue pudiendo jugar,
+// pero los puntajes ya no se guardan ni entran al ranking.
+//
+// Se escribe con el desfase horario explicito (-05:00, Ecuador) porque el
+// contenedor corre en UTC: sin el, 'las 17:30' serian las 12:30 locales.
+const CIERRE_POR_DEFECTO = '2026-08-28T17:30:00-05:00';
+const CIERRE_CONCURSO = (() => {
+  const valor = process.env.CIERRE_CONCURSO || CIERRE_POR_DEFECTO;
+  const fecha = new Date(valor);
+  if (Number.isNaN(fecha.getTime())) {
+    console.error(`CIERRE_CONCURSO no es una fecha valida ('${valor}'); se usa ${CIERRE_POR_DEFECTO}`);
+    return new Date(CIERRE_POR_DEFECTO);
+  }
+  return fecha;
+})();
+
+const concursoCerrado = () => Date.now() > CIERRE_CONCURSO.getTime();
+
 // Con nginx haciendo proxy de /api el origen es el mismo, pero se deja
 // configurable por si el front se sirve desde otro host.
 app.use(cors({
@@ -326,7 +344,12 @@ async function validarFactura(codigoFactura, marca) {
 
 // Healthcheck para Docker / Dokploy
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', marca: MARCA });
+  res.status(200).json({
+    status: 'ok',
+    marca: MARCA,
+    cierre: CIERRE_CONCURSO.toISOString(),
+    cerrado: concursoCerrado()
+  });
 });
 
 app.listen(port, '0.0.0.0', async () => {
@@ -449,12 +472,17 @@ app.post('/save-score', async (req, res) => {
     // Recuperar el usuario actual para verificar el totalScore
     const usuario = await User.findOne({ where: { cedula, marca } });
 
+    // Pasado el cierre la partida se juega igual, pero el puntaje ya no se
+    // guarda: el ranking queda congelado con lo jugado hasta esa hora.
+    const cerrado = concursoCerrado();
+    const cierre = CIERRE_CONCURSO.toISOString();
+
     if (usuario) {
       let mejorScore = usuario.totalScore;
 
-      if (totalScore > usuario.totalScore) {
+      if (!cerrado && totalScore > usuario.totalScore) {
         await User.update(
-          { totalScore, fecha_actualizacion: new Date() }, 
+          { totalScore, fecha_actualizacion: new Date() },
           { where: { cedula, marca } } // Incluir marca en la condición
         );
         mejorScore = totalScore; // Actualizamos mejorScore al nuevo totalScore
@@ -466,17 +494,25 @@ app.post('/save-score', async (req, res) => {
         token: token
       });
 
-      res.json({ message: 'Datos guardados', totalScore, mejorScore });
+      res.json({
+        message: cerrado ? 'Concurso cerrado, puntaje no guardado' : 'Datos guardados',
+        totalScore,
+        mejorScore,
+        cerrado,
+        cierre
+      });
     } else {
       // guardar los datos del usuario por primera vez
-      await User.create({
-        cedula,
-        nombre,
-        totalScore,
-        fecha_creacion: new Date(),
-        fecha_actualizacion: new Date(),
-        marca
-      });
+      if (!cerrado) {
+        await User.create({
+          cedula,
+          nombre,
+          totalScore,
+          fecha_creacion: new Date(),
+          fecha_actualizacion: new Date(),
+          marca
+        });
+      }
 
       // Eliminar la sesión de Redis
       await rs.kill({
@@ -484,8 +520,13 @@ app.post('/save-score', async (req, res) => {
         token: token
       });
 
-      res.json({ message: 'Datos guardados', totalScore, mejorScore: totalScore });
-
+      res.json({
+        message: cerrado ? 'Concurso cerrado, puntaje no guardado' : 'Datos guardados',
+        totalScore,
+        mejorScore: cerrado ? 0 : totalScore,
+        cerrado,
+        cierre
+      });
     }
 
   } catch (err) {
